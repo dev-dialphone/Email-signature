@@ -347,8 +347,11 @@ async function promosView() {
   };
   // Build banner HTML from a pasted image URL (no upload needed).
   $('#purlbtn').onclick = () => {
-    const u = ($('#purl').value || '').trim();
+    let u = ($('#purl').value || '').trim();
     if (!/^https?:\/\/.+/i.test(u)) { $('#pmsg').textContent = 'Enter a valid http(s) image URL'; return; }
+    // GitHub 'blob' page link -> real raw image link.
+    u = u.replace('https://github.com/', 'https://raw.githubusercontent.com/')
+         .replace('/blob/', '/').replace(/\?raw=true$/i, '');
     const esc = u.replace(/"/g, '&quot;');
     const html = `<div style="padding:8px 0;"><img src="${esc}" alt="promotion" style="max-width:600px;width:100%;display:block;" /></div>`;
     $('#ph').value = html;
@@ -356,8 +359,19 @@ async function promosView() {
     $('#pmsg').textContent = 'URL added ✓ — name it and Create';
   };
   $('#pc').onclick = async () => {
-    if (!$('#ph').value.trim()) { $('#pmsg').textContent='Upload an image or paste HTML first'; return; }
-    await api('/promos',{method:'POST',body:{name:$('#pn').value||'Banner',html:$('#ph').value,position:$('#pp').value}});
+    let html = ($('#ph').value || '').trim();
+    if (!html) { $('#pmsg').textContent='Upload an image, paste a URL, or paste HTML first'; return; }
+    // Forgiving: if the box holds a bare image URL (not HTML), wrap it as an <img>.
+    // Also fix GitHub 'blob' page links -> real raw image links.
+    if (/^https?:\/\/\S+$/i.test(html)) {
+      let u = html
+        .replace('https://github.com/', 'https://raw.githubusercontent.com/')
+        .replace('/blob/', '/')
+        .replace(/\?raw=true$/i, '');
+      const esc = u.replace(/"/g, '&quot;');
+      html = `<div style="padding:8px 0;"><img src="${esc}" alt="promotion" style="max-width:600px;width:100%;display:block;" /></div>`;
+    }
+    await api('/promos',{method:'POST',body:{name:$('#pn').value||'Banner',html,position:$('#pp').value}});
     promosView();
   };
 }
