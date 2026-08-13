@@ -328,6 +328,9 @@ async function promosView() {
       <label>Position</label><select id="pp"><option value="above">Above signature</option><option value="below">Below signature</option></select>
       <label>Upload a ready-made banner image (PNG/JPG/GIF)</label>
       <input type="file" id="pf" accept="image/*"/>
+      <label>…or paste an image URL (e.g. GitHub raw link)</label>
+      <div class="row"><div><input id="purl" placeholder="https://.../banner.png"/></div>
+        <div style="flex:0 0 auto"><button class="sec" id="purlbtn" type="button">Use URL</button></div></div>
       <label>…or paste banner HTML</label>
       <textarea id="ph" rows="3" placeholder='&lt;div&gt;&lt;img src="https://.../banner.png" width="500"/&gt;&lt;/div&gt;'></textarea>
       <div id="pprev" class="preview" style="display:none;margin-top:10px"></div>
@@ -341,6 +344,16 @@ async function promosView() {
       $('#pprev').style.display='block'; $('#pprev').innerHTML = r.html;
       $('#pmsg').textContent = 'Banner uploaded ✓ — name it and Create'; }
     catch(err){ $('#pmsg').textContent = err.message; }
+  };
+  // Build banner HTML from a pasted image URL (no upload needed).
+  $('#purlbtn').onclick = () => {
+    const u = ($('#purl').value || '').trim();
+    if (!/^https?:\/\/.+/i.test(u)) { $('#pmsg').textContent = 'Enter a valid http(s) image URL'; return; }
+    const esc = u.replace(/"/g, '&quot;');
+    const html = `<div style="padding:8px 0;"><img src="${esc}" alt="promotion" style="max-width:600px;width:100%;display:block;" /></div>`;
+    $('#ph').value = html;
+    $('#pprev').style.display = 'block'; $('#pprev').innerHTML = html;
+    $('#pmsg').textContent = 'URL added ✓ — name it and Create';
   };
   $('#pc').onclick = async () => {
     if (!$('#ph').value.trim()) { $('#pmsg').textContent='Upload an image or paste HTML first'; return; }
