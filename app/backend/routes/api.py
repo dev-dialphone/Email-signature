@@ -398,7 +398,13 @@ def add_employee(body: EmployeeIn, user: dict = Depends(require_role("admin"))):
 
 @router.delete("/employees/{eid}", status_code=204)
 def delete_employee(eid: str, user: dict = Depends(require_role("admin"))):
-    db.execute("DELETE FROM employees WHERE id=? AND tenant_id=?", (eid, _tenant_of(user)))
+    tid = _tenant_of(user)
+    # Only delete if the employee belongs to THIS tenant; 404 otherwise so an
+    # admin can neither remove nor probe another entity's employees.
+    row = db.q_one("SELECT id FROM employees WHERE id=? AND tenant_id=?", (eid, tid))
+    if not row:
+        raise HTTPException(404, "Employee not found")
+    db.execute("DELETE FROM employees WHERE id=? AND tenant_id=?", (eid, tid))
 
 
 # ---------- image uploads (admin) ----------

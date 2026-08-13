@@ -53,12 +53,14 @@ def classic(v: SigVals) -> str:
 
 def modern(v: SigVals) -> str:
     parts = " &middot; ".join(p for p in [v.phone, v.email_link, v.website_link, v.address] if p)
+    company_line = (f'<div style="font-family:Arial,sans-serif;font-size:13px;font-weight:bold;'
+                    f'color:{v.text};">{v.company}</div>' if v.company else '')
     return (
         '<table cellpadding="0" cellspacing="0" border="0" style="width:600px;">'
         f'<tr><td valign="middle" style="padding-bottom:10px;">{v.logo_html}</td>'
         f'<td valign="middle" style="padding-left:20px;padding-bottom:10px;">'
         f'<div style="font-family:Arial,sans-serif;font-size:18px;font-weight:bold;color:{v.accent};">{v.name}</div>'
-        f'<div style="font-family:Arial,sans-serif;font-size:13px;color:{v.muted};">{v.title}</div></td></tr>'
+        f'<div style="font-family:Arial,sans-serif;font-size:13px;color:{v.muted};">{v.title}</div>{company_line}</td></tr>'
         f'<tr><td colspan="2" style="padding-bottom:10px;"><div style="height:3px;background:{v.accent};"></div></td></tr>'
         f'<tr><td colspan="2" style="font-family:Arial,sans-serif;font-size:13px;color:{v.text};padding-bottom:10px;">{parts}</td></tr>'
         f'<tr><td colspan="2">{v.social_html}</td></tr></table>'
