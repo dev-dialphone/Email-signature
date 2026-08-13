@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# App runtime data / uploads (do not commit local DB or user uploads)
+app/backend/data.db
+app/uploads/logos/
+app/uploads/promos/
+
+# Editor / tooling
+.claude/
+
+# Scratch: extracted reference module + one-off report drafts
+_extracted/
+
+# Uploaded chat artifacts (screenshots, zips) — keep the built extension zip out of git
+uploads/*.png
+uploads/*.zip

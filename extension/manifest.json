@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Entity Signature for Gmail",
+  "version": "1.0.0",
+  "description": "Auto-inserts your company's branded signature into Gmail compose, personalized with your name & email. Multi-entity aware.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "http://localhost:8000/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Entity Signature"
+  },
+  "icons": { "128": "icon.png" }
+}

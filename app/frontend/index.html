@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Signature Manager</title>
+<style>
+  :root { --accent:#1a73e8; --bg:#f5f6f8; --card:#fff; --line:#e5e7eb; --muted:#6b7280; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Arial,Helvetica,sans-serif; background:var(--bg); color:#222; }
+  header { background:var(--accent); color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header b { font-size:18px; }
+  .wrap { max-width:1000px; margin:20px auto; padding:0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:20px; margin-bottom:16px; }
+  h2 { margin:0 0 14px; font-size:16px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:8px 0 3px; }
+  input, select, textarea { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; font-size:14px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px 16px; font-size:14px; cursor:pointer; }
+  button.sec { background:#fff; color:var(--accent); border:1px solid var(--accent); }
+  button.warn { background:#dc2626; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:180px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  .badge { font-size:11px; padding:2px 8px; border-radius:10px; }
+  .ok { background:#dcfce7; color:#166534; } .err { background:#fee2e2; color:#991b1b; }
+  .tabs { display:flex; gap:8px; margin-bottom:16px; }
+  .tabs button { background:#fff; color:#444; border:1px solid var(--line); }
+  .tabs button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .preview { border:1px dashed var(--line); border-radius:6px; padding:16px; background:#fff; min-height:120px; }
+  .muted { color:var(--muted); font-size:12px; }
+  .center { max-width:360px; margin:80px auto; }
+  .tpl-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .tpl { border:1px solid var(--line); border-radius:6px; padding:10px; cursor:pointer; transition:.12s; }
+  .tpl:hover { border-color:var(--accent); }
+  .tpl.sel { border-color:var(--accent); background:#eef4fe; box-shadow:0 0 0 1px var(--accent) inset; }
+  .tpl-name { font-weight:bold; font-size:13px; }
+  .tpl-desc { font-size:11px; color:var(--muted); margin-top:2px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
