@@ -1,7 +1,7 @@
 // Popup: set the backend URL and test resolve against the active Gmail tab's
 // account email (or a manual probe).
 const $ = (s) => document.querySelector(s);
-const DEFAULT = "https://edf21d59737b4fd391d05333c29ee474.preview.crownitsolution.com:39000";
+const DEFAULT = "https://signature.crownitsolution.com";
 
 chrome.storage.sync.get(["apiBase"], (v) => { $("#api").value = (v && v.apiBase) || DEFAULT; });
 

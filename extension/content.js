@@ -6,7 +6,7 @@
 // fallbacks). No public API exists for compose injection, so DOM is the only
 // route. Verbose console logs (prefix [EntitySig]) make failures diagnosable.
 
-const DEFAULT_API = "https://edf21d59737b4fd391d05333c29ee474.preview.crownitsolution.com:39000";
+const DEFAULT_API = "https://signature.crownitsolution.com";
 const SELECTORS = {
   composeBody: 'div[aria-label="Message Body"], div[g_editable="true"], div[role="textbox"][contenteditable="true"]',
 };
