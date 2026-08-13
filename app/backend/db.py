@@ -3,12 +3,18 @@ small (6 tables) and stdlib sqlite3 keeps the standalone app zero-dependency on
 the data layer. ponytail: single-DB, sync sqlite. Ceiling ~a few offices; move
 to Postgres + async driver when tenants/users grow past that."""
 import json
+import os
 import sqlite3
 import time
 import uuid
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "data.db"
+# DATA_DIR points at a persistent volume in production (set it in Coolify to the
+# mounted path, e.g. /data). Falls back to the source dir for local dev. Keeping
+# the DB off the container's ephemeral filesystem is what survives redeploys.
+DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = DATA_DIR / "data.db"
 
 
 def _conn() -> sqlite3.Connection:

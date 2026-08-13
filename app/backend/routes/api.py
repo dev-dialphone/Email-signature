@@ -16,7 +16,8 @@ from ..lib.email_signature import build_signature_html
 
 router = APIRouter(prefix="/api")
 
-UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
+from ..db import DATA_DIR
+UPLOAD_DIR = DATA_DIR / "uploads"
 ALLOWED_IMG = {"image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"}
 MAX_IMG = 5 * 1024 * 1024
 

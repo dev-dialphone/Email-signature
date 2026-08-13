@@ -16,8 +16,9 @@ app = FastAPI(title="Signature Manager")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)
 
+from .db import DATA_DIR
 FRONTEND = Path(__file__).parent.parent / "frontend"
-UPLOADS = Path(__file__).parent.parent / "uploads"
+UPLOADS = DATA_DIR / "uploads"
 
 
 def seed():
