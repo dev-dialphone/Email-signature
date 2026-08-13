@@ -2,6 +2,7 @@
 every admin/agent action is scoped to the caller's tenant_id; the owner is
 cross-tenant."""
 import json
+import os
 import uuid
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
@@ -35,6 +36,29 @@ async def _save_image(file: UploadFile, subdir: str) -> str:
     name = f"{uuid.uuid4().hex}.{ext}"
     (d / name).write_bytes(data)
     return f"/uploads/{subdir}/{name}"
+
+
+def _public_base(request: Request) -> str:
+    """Absolute site origin for image URLs embedded in email.
+
+    Behind a reverse proxy (Coolify/Traefik) request.base_url is often http://
+    internal-host; email clients then block the mixed/insecure image and show a
+    broken icon. Resolve robustly:
+      1) PUBLIC_BASE_URL env var (set this to https://signature.crownitsolution.com)
+      2) X-Forwarded-Proto + X-Forwarded-Host from the proxy
+      3) request.base_url, upgraded to https for non-local hosts.
+    """
+    env = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    if env:
+        return env
+    host = request.headers.get("x-forwarded-host") or request.url.hostname or ""
+    proto = request.headers.get("x-forwarded-proto")
+    if not proto:
+        proto = "http" if host in ("localhost", "127.0.0.1") or host.startswith("localhost:") else "https"
+    port = request.url.port
+    if port and host and ":" not in host and port not in (80, 443):
+        host = f"{host}:{port}"
+    return f"{proto}://{host}"
 
 
 # ---------- auth ----------
@@ -161,7 +185,7 @@ def update_signature(body: SigUpdate, user: dict = Depends(require_role("admin")
 def preview(request: Request, user: dict = Depends(require_role("admin"))):
     """Live preview using the admin's own identity as the sample person."""
     tid = _tenant_of(user)
-    base_url = str(request.base_url).rstrip("/")
+    base_url = _public_base(request)
     sig = sync._sig_config(db.ensure_sig_row(tid))
     sample = {"name": user["name"], "email": user["email"],
               "title": user["title"] or "Sales Representative", "phone": user["phone"]}
@@ -176,7 +200,7 @@ def send_test(request: Request, user: dict = Depends(require_role("admin"))):
     posting real mail (no SMTP/Workspace wired). Swap in a real send here — the
     HTML is already final and email-safe."""
     tid = _tenant_of(user)
-    base_url = str(request.base_url).rstrip("/")
+    base_url = _public_base(request)
     sig = sync._sig_config(db.ensure_sig_row(tid))
     sample = {"name": user["name"], "email": user["email"],
               "title": user["title"] or "Sales Representative", "phone": user["phone"]}
@@ -290,7 +314,7 @@ def apply(request: Request, user: dict = Depends(require_role("admin"))):
     is required. (The optional Workspace auto-push path lives behind
     GOOGLE_MODE=real / RealGoogleProvider and is not gated here.)"""
     tid = _tenant_of(user)
-    base_url = str(request.base_url).rstrip("/")
+    base_url = _public_base(request)
     return sync.apply_signatures(tid, base_url)
 
 
@@ -388,7 +412,7 @@ def resolve(email: str, request: Request):
         local = email.split("@")[0].replace(".", " ").replace("_", " ").title()
         person = {"email": email, "name": local, "title": None, "phone": None}
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = _public_base(request)
     html = build_signature_html(sync._sig_config(sig_row), person, base_url)
     html = sync._wrap_with_promo(tenant["id"], html, base_url)
     return {"found": True, "entity": tenant["name"], "name": person["name"], "html": html}
