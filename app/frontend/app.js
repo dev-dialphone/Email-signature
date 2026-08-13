@@ -328,49 +328,48 @@ async function promosView() {
       <label>Position</label><select id="pp"><option value="above">Above signature</option><option value="below">Below signature</option></select>
       <label>Upload a ready-made banner image (PNG/JPG/GIF)</label>
       <input type="file" id="pf" accept="image/*"/>
-      <label>…or paste an image URL (e.g. GitHub raw link)</label>
-      <div class="row"><div><input id="purl" placeholder="https://.../banner.png"/></div>
-        <div style="flex:0 0 auto"><button class="sec" id="purlbtn" type="button">Use URL</button></div></div>
-      <label>…or paste banner HTML</label>
-      <textarea id="ph" rows="3" placeholder='&lt;div&gt;&lt;img src="https://.../banner.png" width="500"/&gt;&lt;/div&gt;'></textarea>
+      <label>…or paste an online image URL</label>
+      <input id="purl" placeholder="https://your-host.com/banner.png"/>
+      <p class="muted">Must be a public, direct image link (opens the image itself in a browser).
+        A GitHub <code>blob</code> link is auto-converted to its raw link.</p>
       <div id="pprev" class="preview" style="display:none;margin-top:10px"></div>
       <div style="margin-top:12px"><button id="pc">Create</button>
+        <button class="sec" id="ppreviewbtn" type="button" style="margin-left:8px">Preview</button>
         <span id="pmsg" class="muted" style="margin-left:10px"></span></div></div>`);
-  $('#pf').onchange = async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    $('#pmsg').textContent = 'Uploading…';
-    try { const r = await upload('/promos/upload', f);
-      $('#ph').value = r.html;
-      $('#pprev').style.display='block'; $('#pprev').innerHTML = r.html;
-      $('#pmsg').textContent = 'Banner uploaded ✓ — name it and Create'; }
-    catch(err){ $('#pmsg').textContent = err.message; }
-  };
-  // Build banner HTML from a pasted image URL (no upload needed).
-  $('#purlbtn').onclick = () => {
-    let u = ($('#purl').value || '').trim();
-    if (!/^https?:\/\/.+/i.test(u)) { $('#pmsg').textContent = 'Enter a valid http(s) image URL'; return; }
-    // GitHub 'blob' page link -> real raw image link.
+
+  // Normalize a pasted URL into an email-safe <img> banner. Returns '' if invalid.
+  function urlToBanner(raw) {
+    let u = (raw || '').trim();
+    if (!/^https?:\/\/\S+$/i.test(u)) return '';
     u = u.replace('https://github.com/', 'https://raw.githubusercontent.com/')
          .replace('/blob/', '/').replace(/\?raw=true$/i, '');
     const esc = u.replace(/"/g, '&quot;');
-    const html = `<div style="padding:8px 0;"><img src="${esc}" alt="promotion" style="max-width:600px;width:100%;display:block;" /></div>`;
-    $('#ph').value = html;
-    $('#pprev').style.display = 'block'; $('#pprev').innerHTML = html;
-    $('#pmsg').textContent = 'URL added ✓ — name it and Create';
+    return `<div style="padding:8px 0;"><img src="${esc}" alt="promotion" style="max-width:600px;width:100%;display:block;" /></div>`;
+  }
+
+  let uploadedHtml = '';   // set when a file is uploaded (takes precedence)
+
+  $('#pf').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    $('#pmsg').textContent = 'Uploading…';
+    try {
+      const r = await upload('/promos/upload', f);
+      uploadedHtml = r.html;
+      $('#pprev').style.display='block'; $('#pprev').innerHTML = r.html;
+      $('#pmsg').textContent = 'Image uploaded ✓ — name it and Create';
+    } catch(err){ $('#pmsg').textContent = err.message; }
   };
+
+  $('#ppreviewbtn').onclick = () => {
+    const html = uploadedHtml || urlToBanner($('#purl').value);
+    if (!html) { $('#pmsg').textContent = 'Upload a file or enter a valid image URL first'; return; }
+    $('#pprev').style.display='block'; $('#pprev').innerHTML = html;
+    $('#pmsg').textContent = 'Preview shown — if the image appears here it will work in email';
+  };
+
   $('#pc').onclick = async () => {
-    let html = ($('#ph').value || '').trim();
-    if (!html) { $('#pmsg').textContent='Upload an image, paste a URL, or paste HTML first'; return; }
-    // Forgiving: if the box holds a bare image URL (not HTML), wrap it as an <img>.
-    // Also fix GitHub 'blob' page links -> real raw image links.
-    if (/^https?:\/\/\S+$/i.test(html)) {
-      let u = html
-        .replace('https://github.com/', 'https://raw.githubusercontent.com/')
-        .replace('/blob/', '/')
-        .replace(/\?raw=true$/i, '');
-      const esc = u.replace(/"/g, '&quot;');
-      html = `<div style="padding:8px 0;"><img src="${esc}" alt="promotion" style="max-width:600px;width:100%;display:block;" /></div>`;
-    }
+    const html = uploadedHtml || urlToBanner($('#purl').value);
+    if (!html) { $('#pmsg').textContent='Upload a file or enter a valid public image URL first'; return; }
     await api('/promos',{method:'POST',body:{name:$('#pn').value||'Banner',html,position:$('#pp').value}});
     promosView();
   };
