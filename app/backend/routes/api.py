@@ -23,6 +23,38 @@ ALLOWED_IMG = {"image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"
 MAX_IMG = 5 * 1024 * 1024
 
 
+def _shrink_for_email(data: bytes, ext: str) -> tuple[bytes, str]:
+    """Gmail proxies images and often refuses to render large ones (a 1.7 MB
+    banner fails while a small logo loads). Downscale to <=1000px wide and
+    recompress so uploaded banners always render. Best-effort: if Pillow isn't
+    installed, return the original bytes unchanged."""
+    try:
+        import io
+        from PIL import Image
+        im = Image.open(io.BytesIO(data))
+        if im.width > 1000:
+            im = im.resize((1000, round(im.height * 1000 / im.width)))
+        # A heavy PNG (photo banner) stays huge as PNG; if it's big and has no
+        # transparency, re-encode as JPEG — far smaller, and Gmail loads it.
+        heavy = len(data) > 400 * 1024
+        has_alpha = im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info)
+        if heavy and not has_alpha and ext != "gif":
+            im = im.convert("RGB")
+            out = io.BytesIO(); im.save(out, format="JPEG", quality=82, optimize=True)
+            shrunk = out.getvalue()
+            return (shrunk, "jpg") if len(shrunk) < len(data) else (data, ext)
+        out = io.BytesIO()
+        fmt = {"jpg": "JPEG", "jpeg": "JPEG", "png": "PNG", "webp": "WEBP", "gif": "GIF"}.get(ext, "PNG")
+        kw = {"optimize": True}
+        if fmt == "JPEG":
+            im = im.convert("RGB"); kw["quality"] = 82
+        im.save(out, format=fmt, **kw)
+        shrunk = out.getvalue()
+        return (shrunk, ext) if len(shrunk) < len(data) else (data, ext)
+    except Exception:
+        return data, ext
+
+
 async def _save_image(file: UploadFile, subdir: str) -> str:
     mime = file.content_type or ""
     if mime not in ALLOWED_IMG:
@@ -31,6 +63,7 @@ async def _save_image(file: UploadFile, subdir: str) -> str:
     if len(data) > MAX_IMG:
         raise HTTPException(413, "Image must be under 5 MB")
     ext = {"image/png": "png", "image/gif": "gif", "image/webp": "webp"}.get(mime, "jpg")
+    data, ext = _shrink_for_email(data, ext)
     d = UPLOAD_DIR / subdir
     d.mkdir(parents=True, exist_ok=True)
     name = f"{uuid.uuid4().hex}.{ext}"
