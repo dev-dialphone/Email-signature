@@ -267,11 +267,20 @@ async function sigTemplatesView() {
     <div class="card"><h2>Saved signature designs</h2>
       <table><tr><th>Name</th><th></th></tr>
         ${cards||'<tr><td colspan=2 class="muted">None yet — design a signature then “Save as Template”.</td></tr>'}</table>
-      <p class="muted">Apply overwrites the current signature design with the saved one.</p></div>`);
+      <p class="muted">Apply overwrites the current signature design with the saved one.</p>
+      <p id="tplmsg" class="muted"></p></div>`);
 }
 window.applyTpl = async (id) => {
-  try { await api(`/sig-templates/${id}/apply`,{method:'POST'}); state.tab='signature'; render(); }
-  catch(e){ alert('Could not apply template: ' + e.message); }
+  const msg = document.getElementById('tplmsg');
+  if (msg) msg.textContent = 'Applying…';
+  try {
+    await api(`/sig-templates/${id}/apply`, { method: 'POST' });
+    if (msg) msg.textContent = '✓ Applied. Opening Signature tab…';
+    setTimeout(() => { state.tab = 'signature'; render(); }, 600);
+  } catch (e) {
+    if (msg) msg.textContent = '✗ Could not apply: ' + e.message;
+    else alert('Could not apply template: ' + e.message);
+  }
 };
 window.delTpl = async (id) => { await api(`/sig-templates/${id}`,{method:'DELETE'}); sigTemplatesView(); };
 
