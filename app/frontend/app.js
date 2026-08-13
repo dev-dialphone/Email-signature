@@ -37,9 +37,21 @@ function loginView() {
   app.innerHTML = `<div class="wrap center"><div class="card">
     <h2>Sign in</h2>
     <label>Email</label><input id="e" placeholder="you@company.com"/>
-    <label>Password</label><input id="p" type="password"/>
+    <label>Password</label>
+    <div style="position:relative">
+      <input id="p" type="password" style="padding-right:64px"/>
+      <button id="peye" type="button" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);
+        background:none;border:0;color:var(--accent);cursor:pointer;font-size:12px;padding:4px 8px">Show</button>
+    </div>
     <div style="margin-top:14px"><button id="go">Sign in</button></div>
     <p id="err" style="color:#dc2626;font-size:13px"></p></div></div>`;
+  $('#peye').onclick = () => {
+    const p = $('#p');
+    const show = p.type === 'password';
+    p.type = show ? 'text' : 'password';
+    $('#peye').textContent = show ? 'Hide' : 'Show';
+    p.focus();
+  };
   $('#p').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
   $('#go').onclick = async () => {
     try {
