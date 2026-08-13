@@ -1,7 +1,12 @@
-"""SQLite schema + tiny data-access helpers. One file, no ORM — the domain is
-small (6 tables) and stdlib sqlite3 keeps the standalone app zero-dependency on
-the data layer. ponytail: single-DB, sync sqlite. Ceiling ~a few offices; move
-to Postgres + async driver when tenants/users grow past that."""
+"""Data layer. Speaks Postgres when DATABASE_URL is set, else SQLite (local dev).
+
+The app's route code calls q_one / q_all / execute with '?' placeholders and a
+tuple; this module translates to the active driver. Schema is identical across
+both engines (portable TEXT/INTEGER columns), so nothing above this file changes
+when you flip databases.
+
+ponytail: hand-rolled thin layer, no ORM/pool tuning. Fine for one-office scale;
+add a real connection pool (psycopg_pool) if concurrency grows."""
 import json
 import os
 import sqlite3
@@ -9,39 +14,39 @@ import time
 import uuid
 from pathlib import Path
 
-# DATA_DIR points at a persistent volume in production (set it in Coolify to the
-# mounted path, e.g. /data). Falls back to the source dir for local dev. Keeping
-# the DB off the container's ephemeral filesystem is what survives redeploys.
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+USE_PG = DATABASE_URL.startswith(("postgres://", "postgresql://"))
+
+# DATA_DIR (SQLite mode) points at a persistent volume in production; also holds
+# uploaded logos/banners in BOTH modes (see routes/api.py, main.py).
 DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "data.db"
 
-
-def _conn() -> sqlite3.Connection:
-    c = sqlite3.connect(DB_PATH)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA foreign_keys = ON")
-    return c
+if USE_PG:
+    import psycopg
+    from psycopg.rows import dict_row
 
 
+# ---- schema (portable; '%%' not needed — no literal % in DDL) ----
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS tenants (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     domain TEXT,
     google_connected INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
+    created_at BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    tenant_id TEXT,                       -- NULL for the platform owner
+    tenant_id TEXT,
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     title TEXT,
     phone TEXT,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL,                   -- owner | admin | agent
-    created_at INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    created_at BIGINT NOT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS sig_settings (
@@ -63,7 +68,7 @@ CREATE TABLE IF NOT EXISTS employees (
     name TEXT NOT NULL,
     title TEXT,
     phone TEXT,
-    created_at INTEGER NOT NULL,
+    created_at BIGINT NOT NULL,
     UNIQUE (tenant_id, email),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
@@ -72,26 +77,26 @@ CREATE TABLE IF NOT EXISTS promo_templates (
     tenant_id TEXT NOT NULL,
     name TEXT NOT NULL,
     html TEXT NOT NULL,
-    position TEXT NOT NULL DEFAULT 'above',   -- above | below (the signature)
+    position TEXT NOT NULL DEFAULT 'above',
     active INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL,
+    created_at BIGINT NOT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS sig_templates (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     name TEXT NOT NULL,
-    design_json TEXT NOT NULL,          -- {layout, logo_size, logo_pos, social_pos, company fields...}
-    created_at INTEGER NOT NULL,
+    design_json TEXT NOT NULL,
+    created_at BIGINT NOT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS sync_log (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     user_email TEXT NOT NULL,
-    status TEXT NOT NULL,                     -- ok | error
+    status TEXT NOT NULL,
     detail TEXT,
-    created_at INTEGER NOT NULL,
+    created_at BIGINT NOT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 """
@@ -111,30 +116,61 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
+# ---- placeholder translation: routes use '?'; Postgres wants '%s' ----
+def _sql(sql: str) -> str:
+    return sql.replace("?", "%s") if USE_PG else sql
+
+
+def _pg_conn():
+    # client_encoding=UTF8 so TEXT always decodes to str (a SQL_ASCII server can
+    # otherwise hand back bytes, breaking password checks / JSON).
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row, client_encoding="UTF8")
+
+
+def _sqlite_conn() -> sqlite3.Connection:
+    c = sqlite3.connect(DB_PATH)
+    c.row_factory = sqlite3.Row
+    c.execute("PRAGMA foreign_keys = ON")
+    return c
+
+
 def init_db() -> None:
-    with _conn() as c:
-        c.executescript(SCHEMA)
+    if USE_PG:
+        with _pg_conn() as c, c.cursor() as cur:
+            cur.execute(SCHEMA)      # psycopg runs multiple statements in one execute
+            c.commit()
+    else:
+        with _sqlite_conn() as c:
+            c.executescript(SCHEMA)
 
 
 def q_one(sql: str, params: tuple = ()) -> dict | None:
-    with _conn() as c:
+    if USE_PG:
+        with _pg_conn() as c, c.cursor() as cur:
+            cur.execute(_sql(sql), params)
+            r = cur.fetchone()
+            return dict(r) if r else None
+    with _sqlite_conn() as c:
         r = c.execute(sql, params).fetchone()
         return dict(r) if r else None
 
 
-# Guarantee the schema exists the moment this module is imported, so a worker
-# started against a missing/blank data.db self-heals instead of 500-ing on the
-# first query. Cheap: CREATE TABLE IF NOT EXISTS is a no-op when present.
-init_db()
-
-
 def q_all(sql: str, params: tuple = ()) -> list[dict]:
-    with _conn() as c:
+    if USE_PG:
+        with _pg_conn() as c, c.cursor() as cur:
+            cur.execute(_sql(sql), params)
+            return [dict(r) for r in cur.fetchall()]
+    with _sqlite_conn() as c:
         return [dict(r) for r in c.execute(sql, params).fetchall()]
 
 
 def execute(sql: str, params: tuple = ()) -> None:
-    with _conn() as c:
+    if USE_PG:
+        with _pg_conn() as c, c.cursor() as cur:
+            cur.execute(_sql(sql), params)
+            c.commit()
+        return
+    with _sqlite_conn() as c:
         c.execute(sql, params)
 
 
@@ -144,3 +180,7 @@ def ensure_sig_row(tenant_id: str) -> dict:
         execute("INSERT INTO sig_settings (tenant_id) VALUES (?)", (tenant_id,))
         row = q_one("SELECT * FROM sig_settings WHERE tenant_id=?", (tenant_id,))
     return row
+
+
+# Create the schema on import so a fresh DB self-heals before the first query.
+init_db()

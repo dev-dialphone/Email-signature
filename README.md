@@ -80,7 +80,7 @@ HTML** that renders reliably in Gmail, Outlook, and Apple Mail.
 | Layer | Tech | Notes |
 |------|------|-------|
 | Backend | **FastAPI** (Python 3.11) | one router, ~single-file modules |
-| Database | **SQLite** (stdlib `sqlite3`) | zero-ops; swap to Postgres when needed |
+| Database | **Postgres** (set `DATABASE_URL`) or **SQLite** (default) | same schema; one env var switches |
 | Auth | pbkdf2 password hash + HMAC session tokens | no external auth lib |
 | Frontend | **Vanilla JS SPA** (no build step) | served by the backend |
 | Delivery | **Chrome MV3 extension** | injects into Gmail compose |
@@ -257,7 +257,7 @@ Base path: `/api`. All admin routes require a Bearer session token.
 
 ## Data model
 
-SQLite tables (all company data cascades on entity delete):
+Tables (identical on SQLite & Postgres; all company data cascades on entity delete):
 
 - `tenants` — companies (`name`, `domain`, …)
 - `users` — logins (`owner` | `admin`), scoped by `tenant_id`
@@ -276,6 +276,8 @@ SQLite tables (all company data cascades on entity delete):
 | `OWNER_EMAIL` | `owner@platform.com` | seeded owner login |
 | `OWNER_PASSWORD` | `owner123` | seeded owner password |
 | `APP_SECRET` | `dev-insecure-change-me` | HMAC key for session tokens (**set in prod**) |
+| `DATABASE_URL` | *(unset → SQLite)* | `postgresql://user:pass@host:5432/db` to use Postgres |
+| `DATA_DIR` | source dir | SQLite mode: persistent path for `data.db`; also holds uploads in both modes |
 | `GOOGLE_MODE` | *(unset → mock)* | set to `real` to use the Workspace push path |
 | `GOOGLE_SA_JSON` | — | service-account JSON path (real mode) |
 
