@@ -269,7 +269,10 @@ async function sigTemplatesView() {
         ${cards||'<tr><td colspan=2 class="muted">None yet — design a signature then “Save as Template”.</td></tr>'}</table>
       <p class="muted">Apply overwrites the current signature design with the saved one.</p></div>`);
 }
-window.applyTpl = async (id) => { await api(`/sig-templates/${id}/apply`,{method:'POST'}); state.tab='signature'; render(); };
+window.applyTpl = async (id) => {
+  try { await api(`/sig-templates/${id}/apply`,{method:'POST'}); state.tab='signature'; render(); }
+  catch(e){ alert('Could not apply template: ' + e.message); }
+};
 window.delTpl = async (id) => { await api(`/sig-templates/${id}`,{method:'DELETE'}); sigTemplatesView(); };
 
 // ---------- Admin: directory (employees) ----------
@@ -358,9 +361,12 @@ async function applyView() {
     <div id="sigbox"></div>`);
   $('#apply').onclick = async () => {
     $('#am').textContent='Applying…';
-    try { const r = await api('/apply',{method:'POST'});
-      $('#am').textContent=`Applied to ${r.applied}/${r.total}`; applyView(); }
-    catch(e){ $('#am').textContent=e.message; }
+    try {
+      const r = await api('/apply',{method:'POST'});
+      if (r.skipped) { $('#am').textContent = '⚠ ' + r.skipped + ' — turn the signature ON in the Signature tab.'; return; }
+      if (!r.total)  { $('#am').textContent = '⚠ No employees yet — add them in the Directory tab.'; return; }
+      $('#am').textContent = `Applied to ${r.applied}/${r.total}`; applyView();
+    } catch(e){ $('#am').textContent = 'Error: ' + e.message; }
   };
 }
 window.viewSig = async (email) => {
