@@ -431,11 +431,12 @@ async def upload_promo_image(file: UploadFile = File(...), user: dict = Depends(
 def resolve(email: str, request: Request):
     """Called by the Gmail extension for the logged-in employee.
 
-    LIST-ONLY (Option A): the signature is returned ONLY if the exact email is on
-    that entity's employee list (Directory tab). Any other address — even on a
-    registered company domain — gets nothing. This guarantees Company A's banner
-    can never reach an address the admin didn't explicitly add. The domain still
-    picks the correct entity, but membership is checked by exact email.
+    DOMAIN-WIDE (Option B): the entity is picked by the email DOMAIN, and EVERY
+    address on that company's domain gets the company's signature — so no one is
+    missed (new hires are covered automatically). The Directory list still
+    supplies each person's name/title/phone when present; addresses not on the
+    list get a name derived from the local-part. Cross-company mixing is still
+    impossible because the domain determines the entity.
     No auth: the extension only ever knows the current user's own address."""
     email = (email or "").strip().lower()
     domain = email.split("@")[-1] if "@" in email else ""
@@ -444,15 +445,17 @@ def resolve(email: str, request: Request):
     tenant = db.q_one("SELECT * FROM tenants WHERE domain=?", (domain,))
     if not tenant:
         return {"found": False, "reason": "domain not registered"}
-
-    # Exact-email membership: only listed employees of THIS entity are signed.
-    person = next((u for u in get_provider().list_users(domain) if u["email"] == email), None)
-    if person is None:
-        return {"found": False, "reason": "email not in this entity's list"}
-
     sig_row = db.ensure_sig_row(tenant["id"])
     if not sig_row["enabled"]:
         return {"found": False, "reason": "signature disabled"}
+
+    # Use the directory entry when the address is listed (real name/title/phone),
+    # otherwise derive a display name from the local-part so unlisted staff are
+    # still covered.
+    person = next((u for u in get_provider().list_users(domain) if u["email"] == email), None)
+    if person is None:
+        local = email.split("@")[0].replace(".", " ").replace("_", " ").title()
+        person = {"email": email, "name": local, "title": None, "phone": None}
 
     base_url = _public_base(request)
     html = build_signature_html(sync._sig_config(sig_row), person, base_url)
