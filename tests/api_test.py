@@ -145,8 +145,9 @@ r = c.get(f"/api/resolve?email=asha@{d1}").json()
 check("resolve found + personalized", r["found"] and "Asha" in r["html"] and f"asha@{d1}" in r["html"])
 check("resolve embeds active promo", "banner.jpeg" in r["html"])
 check("resolve unknown domain -> not found", c.get("/api/resolve?email=x@nope-nope.com").json()["found"] is False)
+# Option A (list-only): an address NOT on the entity's list gets nothing, even on a registered domain.
 r2 = c.get(f"/api/resolve?email=random@{d1}").json()
-check("resolve unknown user fallback name", r2["found"] and r2["name"].lower() == "random")
+check("resolve non-listed email -> not found (list-only)", r2["found"] is False and "list" in r2.get("reason", ""))
 check("resolve empty email -> 400", c.get("/api/resolve?email=").status_code == 400)
 # isolation: acme resolve must not leak beta
 check("resolve no cross-tenant leak", "BETA" not in r["html"].upper())

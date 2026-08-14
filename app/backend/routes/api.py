@@ -429,11 +429,14 @@ async def upload_promo_image(file: UploadFile = File(...), user: dict = Depends(
 # ---------- browser-extension client (public, no login) ----------
 @router.get("/resolve")
 def resolve(email: str, request: Request):
-    """Called by the Gmail extension for the logged-in employee. Resolves the
-    employee's entity by their email DOMAIN, then returns that entity's signature
-    rendered with the employee's own name/email. No auth: the extension only ever
-    knows the address of the person currently in Gmail. Directory (name/title) is
-    looked up via the entity's provider; falls back to the local-part as a name."""
+    """Called by the Gmail extension for the logged-in employee.
+
+    LIST-ONLY (Option A): the signature is returned ONLY if the exact email is on
+    that entity's employee list (Directory tab). Any other address — even on a
+    registered company domain — gets nothing. This guarantees Company A's banner
+    can never reach an address the admin didn't explicitly add. The domain still
+    picks the correct entity, but membership is checked by exact email.
+    No auth: the extension only ever knows the current user's own address."""
     email = (email or "").strip().lower()
     domain = email.split("@")[-1] if "@" in email else ""
     if not domain:
@@ -441,15 +444,15 @@ def resolve(email: str, request: Request):
     tenant = db.q_one("SELECT * FROM tenants WHERE domain=?", (domain,))
     if not tenant:
         return {"found": False, "reason": "domain not registered"}
+
+    # Exact-email membership: only listed employees of THIS entity are signed.
+    person = next((u for u in get_provider().list_users(domain) if u["email"] == email), None)
+    if person is None:
+        return {"found": False, "reason": "email not in this entity's list"}
+
     sig_row = db.ensure_sig_row(tenant["id"])
     if not sig_row["enabled"]:
         return {"found": False, "reason": "signature disabled"}
-
-    # employee identity: prefer the entity's directory, else derive from the address
-    person = next((u for u in get_provider().list_users(domain) if u["email"] == email), None)
-    if person is None:
-        local = email.split("@")[0].replace(".", " ").replace("_", " ").title()
-        person = {"email": email, "name": local, "title": None, "phone": None}
 
     base_url = _public_base(request)
     html = build_signature_html(sync._sig_config(sig_row), person, base_url)
