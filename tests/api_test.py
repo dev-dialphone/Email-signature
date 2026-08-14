@@ -153,6 +153,18 @@ check("resolve empty email -> 400", c.get("/api/resolve?email=").status_code == 
 # isolation: acme resolve must not leak beta
 check("resolve no cross-tenant leak", "BETA" not in r["html"].upper())
 
+# Per-domain routing (the extension resolves by the sender's exact domain).
+# Give company B a distinctive signature so we can detect mis-routing.
+c.patch("/api/signature", headers=H(a2), json={"enabled": True, "company_name": "BETA UNIQUE CO"})
+ra = c.get(f"/api/resolve?email=someone@{d1}").json()
+rb = c.get(f"/api/resolve?email=someone@{d2}").json()
+check("domain d1 -> entity Acme only", ra["entity"] == "Acme2" and "BETA UNIQUE CO" not in ra["html"])
+check("domain d2 -> entity Beta only", rb["entity"] == "Beta" and "BETA UNIQUE CO" in rb["html"] and "ACME CORP" not in rb["html"])
+check("plus-addressing routes by domain", c.get(f"/api/resolve?email=sales.team+promo@{d1}").json()["entity"] == "Acme2")
+check("case-insensitive email routes", c.get(f"/api/resolve?email=UPPER@{d1.upper()}").json()["entity"] == "Acme2")
+check("subdomain of registered domain does NOT match", c.get(f"/api/resolve?email=x@mail.{d1}").json()["found"] is False)
+check("lookalike domain does NOT match", c.get(f"/api/resolve?email=x@{d1}.evil.com").json()["found"] is False)
+
 print("== DELETE / CASCADE ==")
 check("delete own template ok", c.delete(f"/api/sig-templates/{sid}", headers=H(a1)).status_code == 204)
 r = c.delete(f"/api/tenants/{t1['id']}", headers=H(owner))
