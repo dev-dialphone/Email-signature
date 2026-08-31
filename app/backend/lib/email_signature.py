@@ -75,6 +75,24 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         f'<a href="{escape(website)}" style="color:{accent};text-decoration:none;">{escape(website)}</a>'
         if website else ""
     )
+    # Per-person WhatsApp (click-to-chat) and Teams (deep link if an email/id was
+    # given, else use a full URL as-is). Rendered only when the employee has them,
+    # folded into the phone block so every layout shows them with no layout edits.
+    contact_lines = []
+    if user.get("phone"):
+        contact_lines.append(escape(str(user["phone"])))
+    wa = (user.get("whatsapp") or "").strip()
+    if wa:
+        digits = "".join(ch for ch in wa if ch.isdigit())
+        contact_lines.append(
+            f'<a href="https://wa.me/{digits}" style="color:{accent};text-decoration:none;">'
+            f'WhatsApp: {escape(wa)}</a>')
+    tm = (user.get("teams") or "").strip()
+    if tm:
+        href = tm if tm.startswith("http") else f'https://teams.microsoft.com/l/chat/0/0?users={escape(tm)}'
+        contact_lines.append(
+            f'<a href="{escape(href)}" style="color:{accent};text-decoration:none;">Teams</a>')
+    phone_block = "<br>".join(contact_lines)
     social_pairs = [
         ("facebook", sig.get("facebook") or ""), ("twitter", sig.get("twitter") or ""),
         ("youtube", sig.get("youtube") or ""), ("linkedin", sig.get("linkedin") or ""),
@@ -84,7 +102,7 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         name=escape(user.get("name") or ""),
         title=escape(user.get("title") or "Sales Representative"),
         company=escape(sig.get("company_name") or ""),
-        phone=escape(str(user.get("phone"))) if user.get("phone") else "",
+        phone=phone_block,
         email_link=email_link,
         address=escape(sig["address"]) if sig.get("address") else "",
         website_link=website_link,

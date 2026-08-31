@@ -337,7 +337,7 @@ window.delTpl = async (id) => { await api(`/sig-templates/${id}`,{method:'DELETE
 async function directoryView() {
   const emps = await api('/employees');
   const rows = emps.map(e=>`<tr><td>${e.name}</td><td>${e.email}</td><td>${e.title||''}</td>
-    <td>${e.phone||''}</td>
+    <td>${e.phone||''}</td><td>${e.whatsapp||''}</td><td>${e.teams||''}</td>
     <td style="white-space:nowrap">
       <button class="sec" onclick="copyEmpSig('${e.id}',this)">Copy for Gmail</button>
       <button class="sec" onclick="dlEmpSig('${e.id}','${e.email}')">HTML</button>
@@ -345,8 +345,8 @@ async function directoryView() {
       <button class="warn" onclick="delEmp('${e.id}')">Remove</button></td></tr>`).join('');
   $('#app').innerHTML = shell(`
     <div class="card"><h2>Employees (who receives the signature)</h2>
-      <table><tr><th>Name</th><th>Email</th><th>Title</th><th>Phone</th><th></th></tr>
-        ${rows||'<tr><td colspan=5 class="muted">No employees yet — add them below</td></tr>'}</table>
+      <table><tr><th>Name</th><th>Email</th><th>Title</th><th>Phone</th><th>WhatsApp</th><th>Teams</th><th></th></tr>
+        ${rows||'<tr><td colspan=7 class="muted">No employees yet — add them below</td></tr>'}</table>
       <p class="muted">Each employee's own name & email are stamped into the signature.
         <b>Copy for Gmail</b>/<b>Download</b> gives THAT agent a ready-to-paste copy —
         share it, they paste into Gmail → Settings → Signature (no editing needed).</p></div>
@@ -355,12 +355,15 @@ async function directoryView() {
         <div><label>Email</label><input id="ee" placeholder="person@yourdomain.com"/></div></div>
       <div class="row"><div><label>Title</label><input id="et"/></div>
         <div><label>Phone</label><input id="ep"/></div></div>
+      <div class="row">
+        <div><label>WhatsApp number</label><input id="ew" placeholder="+91XXXXXXXXXX"/></div>
+        <div><label>Teams (email or link)</label><input id="etm" placeholder="person@company.com"/></div></div>
       <div style="margin-top:12px"><button id="ea">Add</button>
         <span id="emsg" class="muted" style="margin-left:10px"></span></div></div>`);
   $('#ea').onclick = async () => {
     try {
       await api('/employees',{method:'POST',body:{name:$('#en2').value,email:$('#ee').value,
-        title:$('#et').value,phone:$('#ep').value}});
+        title:$('#et').value,phone:$('#ep').value,whatsapp:$('#ew').value,teams:$('#etm').value}});
       directoryView();
     } catch(e){ $('#emsg').textContent = e.message; }
   };

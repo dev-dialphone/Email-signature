@@ -245,7 +245,8 @@ def export_signature(request: Request, employee_id: Optional[str] = None,
         if not emp:
             raise HTTPException(404, "Employee not found")
         person = {"name": emp["name"], "email": emp["email"],
-                  "title": emp["title"] or "Sales Representative", "phone": emp["phone"]}
+                  "title": emp["title"] or "Sales Representative", "phone": emp["phone"],
+                  "whatsapp": emp["whatsapp"], "teams": emp["teams"]}
     elif email:
         addr = email.strip().lower()
         t = db.q_one("SELECT * FROM tenants WHERE id=?", (tid,))
@@ -254,7 +255,8 @@ def export_signature(request: Request, employee_id: Optional[str] = None,
         emp = db.q_one("SELECT * FROM employees WHERE email=? AND tenant_id=?", (addr, tid))
         if emp:
             person = {"name": emp["name"], "email": emp["email"],
-                      "title": emp["title"] or "Sales Representative", "phone": emp["phone"]}
+                      "title": emp["title"] or "Sales Representative", "phone": emp["phone"],
+                      "whatsapp": emp["whatsapp"], "teams": emp["teams"]}
         else:
             local = addr.split("@", 1)[0].replace(".", " ").replace("_", " ")
             person = {"name": local.title(), "email": addr,
@@ -414,6 +416,8 @@ class EmployeeIn(BaseModel):
     name: str
     title: Optional[str] = None
     phone: Optional[str] = None
+    whatsapp: Optional[str] = None
+    teams: Optional[str] = None
 
 
 @router.get("/employees")
@@ -430,9 +434,10 @@ def add_employee(body: EmployeeIn, user: dict = Depends(require_role("admin"))):
     if t["domain"] and not email.endswith("@" + t["domain"]):
         raise HTTPException(422, f"Email must be on this entity's domain (@{t['domain']})")
     try:
-        db.execute("INSERT INTO employees (id, tenant_id, email, name, title, phone, created_at) "
-                   "VALUES (?,?,?,?,?,?,?)",
-                   (db.new_id(), tid, email, body.name, body.title, body.phone, db.now_ms()))
+        db.execute("INSERT INTO employees (id, tenant_id, email, name, title, phone, whatsapp, teams, created_at) "
+                   "VALUES (?,?,?,?,?,?,?,?,?)",
+                   (db.new_id(), tid, email, body.name, body.title, body.phone,
+                    body.whatsapp, body.teams, db.now_ms()))
     except Exception:
         raise HTTPException(409, "Employee with this email already exists")
     return {"ok": True}

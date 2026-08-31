@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS employees (
     name TEXT NOT NULL,
     title TEXT,
     phone TEXT,
+    whatsapp TEXT,
+    teams TEXT,
     created_at BIGINT NOT NULL,
     UNIQUE (tenant_id, email),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
@@ -134,14 +136,38 @@ def _sqlite_conn() -> sqlite3.Connection:
     return c
 
 
+# Columns added after the first release; self-heal existing DBs on boot so a
+# redeploy never needs a manual migration. (table, column, type).
+_MIGRATIONS = [
+    ("employees", "whatsapp", "TEXT"),
+    ("employees", "teams", "TEXT"),
+]
+
+
+def _migrate(run) -> None:
+    """Add any missing column via ALTER TABLE. `run` executes one SQL string.
+    'duplicate column' errors are expected when the column already exists."""
+    for table, col, typ in _MIGRATIONS:
+        try:
+            run(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+        except Exception:
+            pass  # already present
+
+
 def init_db() -> None:
     if USE_PG:
         with _pg_conn() as c, c.cursor() as cur:
             cur.execute(SCHEMA)      # psycopg runs multiple statements in one execute
+            for table, col, typ in _MIGRATIONS:
+                try:
+                    cur.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typ}")
+                except Exception:
+                    c.rollback()
             c.commit()
     else:
         with _sqlite_conn() as c:
             c.executescript(SCHEMA)
+            _migrate(lambda s: c.execute(s))
 
 
 def q_one(sql: str, params: tuple = ()) -> dict | None:

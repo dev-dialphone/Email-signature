@@ -109,6 +109,15 @@ check("dup employee -> 409", c.post("/api/employees", headers=H(a1), json={"name
 check("wrong-domain employee -> 422", c.post("/api/employees", headers=H(a1), json={"name": "X", "email": f"x@{d2}"}).status_code == 422)
 emps = c.get("/api/employees", headers=H(a1)).json()
 check("list employees own only", [e["email"] for e in emps] == [f"asha@{d1}"])
+# WhatsApp + Teams per employee -> click-to-chat + deep link in the signature.
+c.post("/api/employees", headers=H(a1), json={"name": "Wanda", "email": f"wanda@{d1}",
+       "whatsapp": "+91 98765 43210", "teams": "wanda@" + d1})
+we = c.get(f"/api/signature/export?email=wanda@{d1}", headers=H(a1)).json()["html"]
+check("whatsapp click-to-chat rendered", "wa.me/919876543210" in we)
+check("teams deep link rendered", "teams.microsoft.com/l/chat" in we and f"users=wanda@{d1}" in we)
+check("no whatsapp/teams when absent", "wa.me" not in c.get(f"/api/signature/export?email=asha@{d1}", headers=H(a1)).json()["html"])
+_wid = next(e["id"] for e in c.get("/api/employees", headers=H(a1)).json() if e["email"] == f"wanda@{d1}")
+c.delete(f"/api/employees/{_wid}", headers=H(a1))
 eid = emps[0]["id"]
 check("cross-tenant delete employee -> 404", c.delete(f"/api/employees/{eid}", headers=H(a2)).status_code == 404)
 check("employee still there after cross attempt", len(c.get("/api/employees", headers=H(a1)).json()) == 1)
