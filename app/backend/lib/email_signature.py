@@ -67,10 +67,14 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
     # All signature TEXT (name, email/website/WhatsApp/Teams links, accent bars)
     # is black per request; social icon buttons keep their own brand colours.
     accent = "#000000"
+    # Show the email line only when the person has no Teams contact; when Teams is
+    # set, it replaces the email line in the signature (per request). Values are
+    # always rendered exactly as entered — no .com/.ai rewriting.
     email = user.get("email") or ""
+    has_teams = bool((user.get("teams") or "").strip())
     email_link = (
         f'<a href="mailto:{escape(email)}" style="color:{accent};text-decoration:none;">{escape(email)}</a>'
-        if email else ""
+        if email and not has_teams else ""
     )
     website = sig.get("website") or ""
     website_link = (
@@ -93,7 +97,7 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
     if tm:
         href = tm if tm.startswith("http") else f'https://teams.microsoft.com/l/chat/0/0?users={escape(tm)}'
         contact_lines.append(
-            f'<a href="{escape(href)}" style="color:{accent};text-decoration:none;">Teams</a>')
+            f'<a href="{escape(href)}" style="color:{accent};text-decoration:none;">Teams: {escape(tm)}</a>')
     phone_block = "<br>".join(contact_lines)
     social_pairs = [
         ("facebook", sig.get("facebook") or ""), ("twitter", sig.get("twitter") or ""),
