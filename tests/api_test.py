@@ -112,6 +112,17 @@ check("list employees own only", [e["email"] for e in emps] == [f"asha@{d1}"])
 eid = emps[0]["id"]
 check("cross-tenant delete employee -> 404", c.delete(f"/api/employees/{eid}", headers=H(a2)).status_code == 404)
 check("employee still there after cross attempt", len(c.get("/api/employees", headers=H(a1)).json()) == 1)
+# Per-agent export: renders THAT agent's real identity (ready to paste), scoped to tenant.
+ee = c.get(f"/api/signature/export?employee_id={eid}", headers=H(a1)).json()
+check("per-agent export uses agent identity", "Asha" in ee["html"] and f"asha@{d1}" in ee["html"] and ee["for"] == f"asha@{d1}")
+check("cross-tenant employee export -> 404", c.get(f"/api/signature/export?employee_id={eid}", headers=H(a2)).status_code == 404)
+check("export unknown employee -> 404", c.get(f"/api/signature/export?employee_id=nope", headers=H(a1)).status_code == 404)
+# Export by email (Apply & Status page): listed -> real record; unlisted -> derived name.
+el = c.get(f"/api/signature/export?email=asha@{d1}", headers=H(a1)).json()
+check("export by email (listed) uses record", "Asha" in el["html"] and el["for"] == f"asha@{d1}")
+eu = c.get(f"/api/signature/export?email=ravi.kumar@{d1}", headers=H(a1)).json()
+check("export by email (unlisted) derives name", "Ravi Kumar" in eu["html"] and eu["for"] == f"ravi.kumar@{d1}")
+check("export off-domain email -> 422", c.get(f"/api/signature/export?email=x@{d2}", headers=H(a1)).status_code == 422)
 
 print("== SIG TEMPLATES ==")
 check("save template -> 201", c.post("/api/sig-templates", headers=H(a1), json={"name": "T1"}).status_code == 201)

@@ -227,20 +227,45 @@ def preview(request: Request, user: dict = Depends(require_role("admin"))):
 
 
 @router.get("/signature/export")
-def export_signature(request: Request, user: dict = Depends(require_role("admin"))):
+def export_signature(request: Request, employee_id: Optional[str] = None,
+                     email: Optional[str] = None,
+                     user: dict = Depends(require_role("admin"))):
     """Export the finished signature so it can be pasted straight into Gmail's
     'Settings -> Signature' box (like any signature-maker site). Returns the same
-    email-safe HTML the recipient sees, rendered with the admin as the sample
-    person, plus a standalone HTML document for download."""
+    email-safe HTML the recipient sees, plus a standalone HTML document to
+    download and share. Identity precedence: ?employee_id= (that agent's stored
+    record) -> ?email= (a recipient on this tenant's domain; name/title pulled
+    from the directory if listed, else derived from the address) -> the admin.
+    Each agent thus gets a ready-to-paste copy with no editing."""
     tid = _tenant_of(user)
     base_url = _public_base(request)
     sig = sync._sig_config(db.ensure_sig_row(tid))
-    sample = {"name": user["name"], "email": user["email"],
-              "title": user["title"] or "Sales Representative", "phone": user["phone"]}
-    html = sync._wrap_with_promo(tid, build_signature_html(sig, sample, base_url), base_url)
+    if employee_id:
+        emp = db.q_one("SELECT * FROM employees WHERE id=? AND tenant_id=?", (employee_id, tid))
+        if not emp:
+            raise HTTPException(404, "Employee not found")
+        person = {"name": emp["name"], "email": emp["email"],
+                  "title": emp["title"] or "Sales Representative", "phone": emp["phone"]}
+    elif email:
+        addr = email.strip().lower()
+        t = db.q_one("SELECT * FROM tenants WHERE id=?", (tid,))
+        if t["domain"] and not addr.endswith("@" + t["domain"]):
+            raise HTTPException(422, "Email is not on this entity's domain")
+        emp = db.q_one("SELECT * FROM employees WHERE email=? AND tenant_id=?", (addr, tid))
+        if emp:
+            person = {"name": emp["name"], "email": emp["email"],
+                      "title": emp["title"] or "Sales Representative", "phone": emp["phone"]}
+        else:
+            local = addr.split("@", 1)[0].replace(".", " ").replace("_", " ")
+            person = {"name": local.title(), "email": addr,
+                      "title": "Sales Representative", "phone": ""}
+    else:
+        person = {"name": user["name"], "email": user["email"],
+                  "title": user["title"] or "Sales Representative", "phone": user["phone"]}
+    html = sync._wrap_with_promo(tid, build_signature_html(sig, person, base_url), base_url)
     document = ('<!doctype html><html><head><meta charset="utf-8">'
                 '<title>Email signature</title></head><body>' + html + '</body></html>')
-    return {"html": html, "document": document}
+    return {"html": html, "document": document, "for": person["email"]}
 
 
 @router.post("/signature/test")

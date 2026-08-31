@@ -222,6 +222,7 @@ async function signatureView() {
         <button class="sec" id="astpl">Save as Template</button>
         <button class="sec" id="copygm">Copy for Gmail</button>
         <button class="sec" id="dlhtml">Download .html</button>
+        <button class="sec" id="dlimg">Download image</button>
         <span id="msg" class="muted" style="align-self:center"></span></div>
     </div>
     <div class="card"><h2>Live preview <span class="muted">(your identity as sample)</span></h2>
@@ -288,6 +289,14 @@ async function signatureView() {
     URL.revokeObjectURL(a.href);
     $('#msg').textContent='Downloaded — open it, select all, copy into Gmail';
   };
+  $('#dlimg').onclick = async () => {
+    await api('/signature',{method:'PATCH',body:collectSig()});
+    const r = await api('/signature/export');
+    $('#msg').textContent='Rendering image…';
+    try { await sigHtmlToPng(r.html, 'email-signature.png');
+      $('#msg').textContent='Image downloaded (use HTML for Gmail — image has no clickable links)'; }
+    catch(e){ $('#msg').textContent='Image render failed'; }
+  };
 }
 window.sigTab = (t) => { sigSubTab = t; signatureView(); };
 // Clicking a template tile: persist current edits, save the layout, re-render.
@@ -328,12 +337,19 @@ window.delTpl = async (id) => { await api(`/sig-templates/${id}`,{method:'DELETE
 async function directoryView() {
   const emps = await api('/employees');
   const rows = emps.map(e=>`<tr><td>${e.name}</td><td>${e.email}</td><td>${e.title||''}</td>
-    <td>${e.phone||''}</td><td><button class="warn" onclick="delEmp('${e.id}')">Remove</button></td></tr>`).join('');
+    <td>${e.phone||''}</td>
+    <td style="white-space:nowrap">
+      <button class="sec" onclick="copyEmpSig('${e.id}',this)">Copy for Gmail</button>
+      <button class="sec" onclick="dlEmpSig('${e.id}','${e.email}')">HTML</button>
+      <button class="sec" onclick="imgEmpSig('${e.id}','${e.email}',this)">Image</button>
+      <button class="warn" onclick="delEmp('${e.id}')">Remove</button></td></tr>`).join('');
   $('#app').innerHTML = shell(`
     <div class="card"><h2>Employees (who receives the signature)</h2>
       <table><tr><th>Name</th><th>Email</th><th>Title</th><th>Phone</th><th></th></tr>
         ${rows||'<tr><td colspan=5 class="muted">No employees yet — add them below</td></tr>'}</table>
-      <p class="muted">Each employee's own name & email are stamped into the signature on Apply.</p></div>
+      <p class="muted">Each employee's own name & email are stamped into the signature.
+        <b>Copy for Gmail</b>/<b>Download</b> gives THAT agent a ready-to-paste copy —
+        share it, they paste into Gmail → Settings → Signature (no editing needed).</p></div>
     <div class="card"><h2>Add employee</h2>
       <div class="row"><div><label>Name</label><input id="en2"/></div>
         <div><label>Email</label><input id="ee" placeholder="person@yourdomain.com"/></div></div>
@@ -350,6 +366,52 @@ async function directoryView() {
   };
 }
 window.delEmp = async (id) => { await api(`/employees/${id}`,{method:'DELETE'}); directoryView(); };
+
+// Render signature HTML to a PNG in the browser (no server/headless needed).
+// Off-screen node, wait for images (logo/banner) to load, then snapshot.
+async function sigHtmlToPng(html, filename) {
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;padding:12px;display:inline-block';
+  holder.innerHTML = html;
+  document.body.appendChild(holder);
+  try {
+    await Promise.all([...holder.querySelectorAll('img')].map(img =>
+      img.complete ? Promise.resolve()
+        : new Promise(r => { img.onload = img.onerror = r; })));
+    const url = await htmlToImage.toPng(holder, {pixelRatio: 2, backgroundColor: '#ffffff'});
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  } finally { holder.remove(); }
+}
+// Per-agent export: renders the signature with THAT agent's real identity, so
+// each agent gets a ready-to-paste copy (no placeholders to edit).
+window.copyEmpSig = async (id, btn) => {
+  const old = btn.textContent; btn.textContent = '…';
+  try {
+    const r = await api(`/signature/export?employee_id=${id}`);
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([r.html], {type:'text/html'}),
+      'text/plain': new Blob([r.html], {type:'text/plain'}),
+    })]);
+    btn.textContent = 'Copied ✓';
+  } catch(e){ btn.textContent = 'Copy blocked — use Download'; }
+  setTimeout(()=>{ btn.textContent = old; }, 2500);
+};
+window.dlEmpSig = async (id, email) => {
+  const r = await api(`/signature/export?employee_id=${id}`);
+  const blob = new Blob([r.document], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `signature-${email.replace(/[^a-z0-9]+/gi,'_')}.html`; a.click();
+  URL.revokeObjectURL(a.href);
+};
+window.imgEmpSig = async (id, email, btn) => {
+  const old = btn.textContent; btn.textContent = '…';
+  try {
+    const r = await api(`/signature/export?employee_id=${id}`);
+    await sigHtmlToPng(r.html, `signature-${email.replace(/[^a-z0-9]+/gi,'_')}.png`);
+    btn.textContent = old;
+  } catch(e){ btn.textContent = 'Image failed'; setTimeout(()=>btn.textContent=old,2000); }
+};
 
 // ---------- Admin: promotions ----------
 async function promosView() {
@@ -421,14 +483,18 @@ window.delPromo = async (id) => { await api(`/promos/${id}`,{method:'DELETE'}); 
 async function applyView() {
   const dir = await api('/directory').catch(()=>[]);
   const log = await api('/sync-log').catch(()=>[]);
-  const dirRows = dir.map(u=>`<tr><td>${u.name}</td><td>${u.email}</td><td>${u.title||''}</td></tr>`).join('');
+  const dirRows = dir.map(u=>`<tr><td>${u.name}</td><td>${u.email}</td><td>${u.title||''}</td>
+    <td style="white-space:nowrap">
+      <button class="sec" onclick="copyMailSig('${u.email}',this)">Copy for Gmail</button>
+      <button class="sec" onclick="dlMailSig('${u.email}')">HTML</button>
+      <button class="sec" onclick="imgMailSig('${u.email}',this)">Image</button></td></tr>`).join('');
   const logRows = log.map(l=>`<tr><td>${l.user_email}</td>
     <td><span class="badge ${l.status==='ok'?'ok':'err'}">${l.status}</span></td>
     <td class="muted">${l.detail||''}</td>
     <td><button class="sec" onclick="viewSig('${l.user_email}')">view</button></td></tr>`).join('');
   $('#app').innerHTML = shell(`
     <div class="card"><h2>Recipients</h2>
-      <table><tr><th>Name</th><th>Email</th><th>Title</th></tr>${dirRows||'<tr><td colspan=3 class="muted">No employees — add them in the Directory tab</td></tr>'}</table>
+      <table><tr><th>Name</th><th>Email</th><th>Title</th><th>Export for Gmail</th></tr>${dirRows||'<tr><td colspan=4 class="muted">No employees — add them in the Directory tab</td></tr>'}</table>
       <div style="margin-top:14px"><button id="apply">Apply signature to everyone</button>
         <span id="am" class="muted" style="margin-left:10px"></span></div></div>
     <div class="card"><h2>Last sync status</h2>
@@ -447,8 +513,43 @@ async function applyView() {
 window.viewSig = async (email) => {
   const r = await api('/verify/'+encodeURIComponent(email));
   $('#sigbox').innerHTML = `<div class="card"><h2>${email} — applied signature</h2>
-    <div class="preview">${r.html||'<span class="muted">nothing applied</span>'}</div></div>`;
+    <div class="preview">${r.html||'<span class="muted">nothing applied</span>'}</div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="sec" onclick="copyMailSig('${email}',this)">Copy for Gmail</button>
+      <button class="sec" onclick="dlMailSig('${email}')">Download .html</button>
+      <button class="sec" onclick="imgMailSig('${email}',this)">Download image</button></div></div>`;
   $('#sigbox').scrollIntoView({behavior:'smooth'});
+};
+
+// Export any recipient's signature by email (uses their stored record if listed,
+// else a name derived from the address). HTML = correct for Gmail; image = picture only.
+const _fn = (email) => 'signature-' + email.replace(/[^a-z0-9]+/gi,'_');
+window.copyMailSig = async (email, btn) => {
+  const old = btn.textContent; btn.textContent = '…';
+  try {
+    const r = await api('/signature/export?email='+encodeURIComponent(email));
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([r.html], {type:'text/html'}),
+      'text/plain': new Blob([r.html], {type:'text/plain'}),
+    })]);
+    btn.textContent = 'Copied ✓';
+  } catch(e){ btn.textContent = 'Copy blocked — use HTML'; }
+  setTimeout(()=>{ btn.textContent = old; }, 2500);
+};
+window.dlMailSig = async (email) => {
+  const r = await api('/signature/export?email='+encodeURIComponent(email));
+  const blob = new Blob([r.document], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = _fn(email)+'.html'; a.click();
+  URL.revokeObjectURL(a.href);
+};
+window.imgMailSig = async (email, btn) => {
+  const old = btn.textContent; btn.textContent = '…';
+  try {
+    const r = await api('/signature/export?email='+encodeURIComponent(email));
+    await sigHtmlToPng(r.html, _fn(email)+'.png');
+    btn.textContent = old;
+  } catch(e){ btn.textContent = 'Image failed'; setTimeout(()=>btn.textContent=old,2000); }
 };
 
 // ---------- Router ----------
