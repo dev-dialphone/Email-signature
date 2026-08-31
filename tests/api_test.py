@@ -97,6 +97,10 @@ for lay in ["classic", "modern", "minimal", "bold", "compact", "stacked", "stack
         ok = ok and "ACME CORP" in pv["html"]
     check(f"preview {lay} renders", ok)
 check("send test ok", c.post("/api/signature/test", headers=H(a1)).status_code == 200)
+ex = c.get("/api/signature/export", headers=H(a1))
+check("export ok", ex.status_code == 200 and "<table" in ex.json()["html"])
+check("export document is standalone", "<!doctype html" in ex.json()["document"].lower())
+check("export requires admin -> 401", c.get("/api/signature/export").status_code == 401)
 
 print("== EMPLOYEES ==")
 r = c.post("/api/employees", headers=H(a1), json={"name": "Asha", "email": f"asha@{d1}", "title": "Sales"})

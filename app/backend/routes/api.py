@@ -226,6 +226,23 @@ def preview(request: Request, user: dict = Depends(require_role("admin"))):
     return {"html": sync._wrap_with_promo(tid, html, base_url)}
 
 
+@router.get("/signature/export")
+def export_signature(request: Request, user: dict = Depends(require_role("admin"))):
+    """Export the finished signature so it can be pasted straight into Gmail's
+    'Settings -> Signature' box (like any signature-maker site). Returns the same
+    email-safe HTML the recipient sees, rendered with the admin as the sample
+    person, plus a standalone HTML document for download."""
+    tid = _tenant_of(user)
+    base_url = _public_base(request)
+    sig = sync._sig_config(db.ensure_sig_row(tid))
+    sample = {"name": user["name"], "email": user["email"],
+              "title": user["title"] or "Sales Representative", "phone": user["phone"]}
+    html = sync._wrap_with_promo(tid, build_signature_html(sig, sample, base_url), base_url)
+    document = ('<!doctype html><html><head><meta charset="utf-8">'
+                '<title>Email signature</title></head><body>' + html + '</body></html>')
+    return {"html": html, "document": document}
+
+
 @router.post("/signature/test")
 def send_test(request: Request, user: dict = Depends(require_role("admin"))):
     """Send-test: renders the signature exactly as a recipient would see it, with

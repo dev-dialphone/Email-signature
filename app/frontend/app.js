@@ -220,6 +220,8 @@ async function signatureView() {
         <button id="save">Save</button>
         <button class="sec" id="test">Send test email</button>
         <button class="sec" id="astpl">Save as Template</button>
+        <button class="sec" id="copygm">Copy for Gmail</button>
+        <button class="sec" id="dlhtml">Download .html</button>
         <span id="msg" class="muted" style="align-self:center"></span></div>
     </div>
     <div class="card"><h2>Live preview <span class="muted">(your identity as sample)</span></h2>
@@ -259,6 +261,32 @@ async function signatureView() {
     await api('/signature',{method:'PATCH',body:collectSig()});   // save current first
     await api('/sig-templates',{method:'POST',body:{name}});
     $('#msg').textContent='Saved as template ✓';
+  };
+  // Copy-for-Gmail: put the RENDERED signature (not the HTML source) on the
+  // clipboard as rich text, so pasting into Gmail's signature box keeps logo,
+  // colours and layout — exactly how signature-maker sites work.
+  $('#copygm').onclick = async () => {
+    $('#msg').textContent='Preparing…';
+    await api('/signature',{method:'PATCH',body:collectSig()});   // export current design
+    const r = await api('/signature/export');
+    try {
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/html': new Blob([r.html], {type:'text/html'}),
+        'text/plain': new Blob([r.html], {type:'text/plain'}),
+      })]);
+      $('#msg').textContent='Copied ✓ — paste into Gmail → Settings → Signature';
+    } catch(e) {   // clipboard API blocked (non-HTTPS/old browser): fall back to download
+      $('#msg').textContent='Copy blocked — use Download .html instead';
+    }
+  };
+  $('#dlhtml').onclick = async () => {
+    await api('/signature',{method:'PATCH',body:collectSig()});
+    const r = await api('/signature/export');
+    const blob = new Blob([r.document], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'email-signature.html'; a.click();
+    URL.revokeObjectURL(a.href);
+    $('#msg').textContent='Downloaded — open it, select all, copy into Gmail';
   };
 }
 window.sigTab = (t) => { sigSubTab = t; signatureView(); };
