@@ -64,7 +64,9 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
     """sig = entity signature config (company parts). user = the person's own
     name/email/phone/title (fetched from the directory). Always rebuilt so each
     user's identity is correct — never a stored per-user copy."""
-    accent = "#1a73e8"
+    # All signature TEXT (name, email/website/WhatsApp/Teams links, accent bars)
+    # is black per request; social icon buttons keep their own brand colours.
+    accent = "#000000"
     email = user.get("email") or ""
     email_link = (
         f'<a href="mailto:{escape(email)}" style="color:{accent};text-decoration:none;">{escape(email)}</a>'
