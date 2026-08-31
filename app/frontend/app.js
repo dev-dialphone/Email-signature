@@ -491,7 +491,9 @@ async function applyView() {
   const logRows = log.map(l=>`<tr><td>${l.user_email}</td>
     <td><span class="badge ${l.status==='ok'?'ok':'err'}">${l.status}</span></td>
     <td class="muted">${l.detail||''}</td>
-    <td><button class="sec" onclick="viewSig('${l.user_email}')">view</button></td></tr>`).join('');
+    <td style="white-space:nowrap">
+      <button class="sec" onclick="viewSig('${l.user_email}')">view</button>
+      <button onclick="exportMailSig('${l.user_email}',this)">Export</button></td></tr>`).join('');
   $('#app').innerHTML = shell(`
     <div class="card"><h2>Recipients</h2>
       <table><tr><th>Name</th><th>Email</th><th>Title</th><th>Export for Gmail</th></tr>${dirRows||'<tr><td colspan=4 class="muted">No employees — add them in the Directory tab</td></tr>'}</table>
@@ -542,6 +544,23 @@ window.dlMailSig = async (email) => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = _fn(email)+'.html'; a.click();
   URL.revokeObjectURL(a.href);
+};
+// One-click Export: downloads BOTH the clickable HTML (for pasting into Gmail)
+// AND a PNG visual reference, per employee.
+window.exportMailSig = async (email, btn) => {
+  const old = btn.textContent; btn.textContent = 'Exporting…'; btn.disabled = true;
+  try {
+    const r = await api('/signature/export?email='+encodeURIComponent(email));
+    // 1) HTML file (clickable — the one they paste into Gmail)
+    const blob = new Blob([r.document], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = _fn(email)+'.html'; a.click();
+    URL.revokeObjectURL(a.href);
+    // 2) PNG preview (visual reference)
+    await sigHtmlToPng(r.html, _fn(email)+'.png');
+    btn.textContent = 'Exported ✓';
+  } catch(e){ btn.textContent = 'Export failed'; }
+  setTimeout(()=>{ btn.textContent = old; btn.disabled = false; }, 2500);
 };
 window.imgMailSig = async (email, btn) => {
   const old = btn.textContent; btn.textContent = '…';
