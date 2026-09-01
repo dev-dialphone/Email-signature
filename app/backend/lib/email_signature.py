@@ -104,9 +104,13 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         ("youtube", sig.get("youtube") or ""), ("linkedin", sig.get("linkedin") or ""),
         ("instagram", sig.get("instagram") or ""),
     ]
+    # Title: bold + dark like name/company (was faint grey). Wrapping the value
+    # itself carries the styling into every layout with no per-layout edits.
+    _title = escape(user.get("title") or "Sales Representative")
+    title_html = f'<strong style="color:#333333;">{_title}</strong>' if _title else ""
     vals = SigVals(
         name=escape(user.get("name") or ""),
-        title=escape(user.get("title") or "Sales Representative"),
+        title=title_html,
         company=escape(sig.get("company_name") or ""),
         phone=phone_block,
         email_link=email_link,
