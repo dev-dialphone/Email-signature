@@ -139,8 +139,9 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         logo_pos=sig.get("logo_pos", "right") or "right",
         social_pos=sig.get("social_pos", "below_logo") or "below_logo",
     )
-    # Theme may force a distinct default layout so entities differ structurally;
-    # falls back to the admin's chosen layout for DialPhone / unlisted domains.
-    layout = theme.get("layout") or sig.get("layout", "classic") or "classic"
+    # The admin's chosen layout ALWAYS wins (so the Design picker works); the
+    # theme only supplies a starting default the first time, when no layout is
+    # saved yet. Entities still look distinct via accent colour + icon style.
+    layout = sig.get("layout") or theme.get("layout") or "classic"
     body = render_layout(layout, vals)
     return f'<div style="font-family:Arial,sans-serif;margin-top:24px;">{body}</div>'
