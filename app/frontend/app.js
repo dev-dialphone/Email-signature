@@ -142,6 +142,10 @@ const LAYOUTS = [
   ['stacked','Stacked','Single column, socials by name, logo at bottom'],
   ['stacked_social_bottom','Stacked (social bottom)','Stacked, socials under the logo'],
   ['arranged','Arranged','Custom logo & social placement'],
+  ['sidebar','Sidebar','Coloured accent band on the left, logo top-right'],
+  ['banner_top','Banner top','Logo + name row, full-width divider, centred contacts'],
+  ['elegant','Elegant','Centred serif, uppercase name — premium/executive feel'],
+  ['card','Card','Bordered business-card box with an accent header bar'],
 ];
 
 let sigSubTab = 'fields';   // 'fields' | 'design'

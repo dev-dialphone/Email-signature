@@ -3,6 +3,7 @@ Ported from the extracted module; the `settings.PUBLIC_BASE_URL` dependency is
 replaced by a plain base_url argument (standalone app has no global settings)."""
 from html import escape
 from .sig_layouts import SigVals, LOGO_SIZES, render_layout
+from .sig_theme import theme_for
 
 
 def _absolute_url(url: str, base_url: str | None = None) -> str:
@@ -22,7 +23,11 @@ _SOCIAL = {
 }
 
 
-def _social_row(pairs: list[tuple[str, str]], size: int = 32) -> str:
+def _social_row(pairs: list[tuple[str, str]], size: int = 32, icon_style: str = "circle") -> str:
+    # icon_style controls the button shape so entities look visually distinct:
+    #   circle -> filled round button (original)
+    #   square -> filled rounded-rectangle button
+    #   plain  -> brand-colour glyph on transparent bg (no filled button)
     cells = []
     for label, url in pairs:
         if not url:
@@ -30,13 +35,20 @@ def _social_row(pairs: list[tuple[str, str]], size: int = 32) -> str:
         meta = _SOCIAL.get(label)
         if not meta:
             continue
+        if icon_style == "plain":
+            # coloured icon (brand tint) on no background
+            glyph = meta["icon"].replace("/ffffff/", f'/{meta["bg"].lstrip("#")}/')
+            inner = (f'<td width="{size}" height="{size}" style="text-align:center;vertical-align:middle;">'
+                     f'<img src="{glyph}" width="22" height="22" alt="{label}" style="display:block;margin:auto;border:0;" /></td>')
+        else:
+            radius = size // 2 if icon_style == "circle" else 6
+            inner = (f'<td width="{size}" height="{size}" style="background:{meta["bg"]};'
+                     f'border-radius:{radius}px;text-align:center;vertical-align:middle;">'
+                     f'<img src="{meta["icon"]}" width="18" height="18" alt="{label}" style="display:block;margin:auto;border:0;" /></td>')
         cells.append(
             f'<td style="padding-right:6px;">'
             f'<a href="{escape(url)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;">'
-            f'<table cellpadding="0" cellspacing="0" border="0"><tr>'
-            f'<td width="{size}" height="{size}" style="background:{meta["bg"]};border-radius:{size//2}px;text-align:center;vertical-align:middle;">'
-            f'<img src="{meta["icon"]}" width="18" height="18" alt="{label}" style="display:block;margin:auto;border:0;" />'
-            f'</td></tr></table></a></td>'
+            f'<table cellpadding="0" cellspacing="0" border="0"><tr>{inner}</tr></table></a></td>'
         )
     if not cells:
         return ""
@@ -64,13 +76,17 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
     """sig = entity signature config (company parts). user = the person's own
     name/email/phone/title (fetched from the directory). Always rebuilt so each
     user's identity is correct — never a stored per-user copy."""
-    # All signature TEXT (name, email/website/WhatsApp/Teams links, accent bars)
-    # is black per request; social icon buttons keep their own brand colours.
-    accent = "#000000"
+    # Per-entity theme (hardcoded, keyed by the sender's email domain) so
+    # different entities don't look alike. Unknown domains -> DialPhone default
+    # (black text, circle icons). Social icon buttons keep their brand colours.
+    email = user.get("email") or ""
+    domain = email.split("@", 1)[1].lower() if "@" in email else (sig.get("domain") or "")
+    theme = theme_for(domain)
+    accent = theme["accent"]
+    icon_style = theme.get("icon_style", "circle")
     # Show the email line only when the person has no Teams contact; when Teams is
     # set, it replaces the email line in the signature (per request). Values are
     # always rendered exactly as entered — no .com/.ai rewriting.
-    email = user.get("email") or ""
     has_teams = bool((user.get("teams") or "").strip())
     email_link = (
         f'<a href="mailto:{escape(email)}" style="color:{accent};text-decoration:none;">{escape(email)}</a>'
@@ -117,10 +133,14 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         address=escape(sig["address"]) if sig.get("address") else "",
         website_link=website_link,
         logo_html=_logo_html(sig, base_url),
-        social_html=_social_row(social_pairs),
+        social_html=_social_row(social_pairs, icon_style=icon_style),
         accent=accent,
+        text=theme.get("text", "#333333"),
         logo_pos=sig.get("logo_pos", "right") or "right",
         social_pos=sig.get("social_pos", "below_logo") or "below_logo",
     )
-    body = render_layout(sig.get("layout", "classic") or "classic", vals)
+    # Theme may force a distinct default layout so entities differ structurally;
+    # falls back to the admin's chosen layout for DialPhone / unlisted domains.
+    layout = theme.get("layout") or sig.get("layout", "classic") or "classic"
+    body = render_layout(layout, vals)
     return f'<div style="font-family:Arial,sans-serif;margin-top:24px;">{body}</div>'

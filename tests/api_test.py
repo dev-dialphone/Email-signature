@@ -88,7 +88,8 @@ check("get signature ok", c.get("/api/signature", headers=H(a1)).status_code == 
 # minimal & compact are the deliberately terse layouts: they show name/title/contact
 # but intentionally OMIT the company name. Assert company only where the design includes it.
 NO_COMPANY = {"minimal", "compact"}
-for lay in ["classic", "modern", "minimal", "bold", "compact", "stacked", "stacked_social_bottom", "arranged"]:
+for lay in ["classic", "modern", "minimal", "bold", "compact", "stacked", "stacked_social_bottom", "arranged",
+            "sidebar", "banner_top", "elegant", "card"]:
     r = c.patch("/api/signature", headers=H(a1), json={"enabled": True, "layout": lay, "company_name": "ACME CORP", "website": "https://acme.com"})
     check(f"patch layout {lay}", r.status_code == 200 and r.json()["layout"] == lay)
     pv = c.get("/api/signature/preview", headers=H(a1)).json()
@@ -188,6 +189,19 @@ check("plus-addressing routes by domain", c.get(f"/api/resolve?email=sales.team+
 check("case-insensitive email routes", c.get(f"/api/resolve?email=UPPER@{d1.upper()}").json()["entity"] == "Acme2")
 check("subdomain of registered domain does NOT match", c.get(f"/api/resolve?email=x@mail.{d1}").json()["found"] is False)
 check("lookalike domain does NOT match", c.get(f"/api/resolve?email=x@{d1}.evil.com").json()["found"] is False)
+
+print("== PER-ENTITY THEME (hardcoded by domain) ==")
+from backend.lib.email_signature import build_signature_html  # noqa: E402
+_sig = {"layout": "classic", "company_name": "X", "website": "https://x.com",
+        "facebook": "https://fb/x", "linkedin": "https://li/x"}
+def _render(dom):
+    return build_signature_html(_sig, {"name": "A", "email": "a@" + dom, "title": "T"})
+dp, ed, vc, unk = _render("dialphone.com"), _render("easedial.com"), _render("vestacall.com"), _render("nobody-xyz.com")
+check("dialphone keeps black + circle icons", "color:#000000" in dp and "border-radius:16px" in dp)
+check("easedial distinct (teal + square)", "#0F7B7B" in ed and "border-radius:6px" in ed)
+check("vestacall distinct (purple accent)", "#6B21A8" in vc)
+check("unknown domain falls back to dialphone look", "color:#000000" in unk)
+check("entities do NOT look identical", dp != ed and ed != vc and dp != vc)
 
 print("== DELETE / CASCADE ==")
 check("delete own template ok", c.delete(f"/api/sig-templates/{sid}", headers=H(a1)).status_code == 204)

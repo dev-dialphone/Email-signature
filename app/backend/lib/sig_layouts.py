@@ -114,8 +114,9 @@ def _register_extra() -> dict:
     # Imported lazily to avoid a circular import (extra imports SigVals from here).
     from .sig_layouts_extra import stacked, stacked_social_bottom
     from .sig_layout_arranged import arranged
+    from .sig_layouts_pro import PRO_LAYOUTS
     return {"stacked": stacked, "stacked_social_bottom": stacked_social_bottom,
-            "arranged": arranged}
+            "arranged": arranged, **PRO_LAYOUTS}
 
 
 LAYOUTS = {"classic": classic, "modern": modern, "minimal": minimal,
