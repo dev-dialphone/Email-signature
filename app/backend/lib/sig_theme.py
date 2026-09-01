@@ -27,7 +27,8 @@ THEMES = {
     # layout so the structure itself differs, not just colour.
     "easedial.com":  {"accent": "#0F7B7B", "text": "#222222", "icon_style": "square", "layout": "banner_top"},
     "vestacall.com": {"accent": "#6B21A8", "text": "#222222", "icon_style": "plain",  "layout": "elegant"},
-    "salamtalk.com": {"accent": "#C2410C", "text": "#222222", "icon_style": "square", "layout": "card"},
+    # Salamtalk brand blue (the wifi mark in their logo), not brick/orange.
+    "salamtalk.com": {"accent": "#1CA9E3", "text": "#222222", "icon_style": "square", "layout": "card"},
     "mycallconnect.com": {"accent": "#1D4ED8", "text": "#222222", "icon_style": "circle", "layout": "sidebar"},
 }
 
