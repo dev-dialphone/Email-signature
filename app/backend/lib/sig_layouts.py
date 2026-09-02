@@ -19,6 +19,7 @@ class SigVals:
     website_link: str    # full <a> or ""
     logo_html: str       # full <img> already sized, or ""
     social_html: str     # full social row table or ""
+    logo_src: str = ""   # raw absolute logo URL (for round/framed photo layouts)
     accent: str = "#000000"
     text: str = "#333333"
     muted: str = "#888888"

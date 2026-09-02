@@ -85,5 +85,62 @@ def card(v: SigVals) -> str:
     )
 
 
+def _round_img(src: str, size: int = 120) -> str:
+    # Round image via border-radius (widely supported in Gmail/Apple Mail;
+    # degrades to a square in the few clients that ignore it).
+    if not src:
+        return ""
+    return (f'<img src="{src}" width="{size}" height="{size}" alt="" '
+            f'style="width:{size}px;height:{size}px;border-radius:{size//2}px;'
+            f'object-fit:cover;display:block;border:0;" />')
+
+
+def photo_circle(v: SigVals) -> str:
+    """Round photo/logo on the left, a thin accent divider, then name (large),
+    coloured title, contacts and small round social icons on the right."""
+    contacts = "<br>".join(p for p in [v.phone, v.email_link, v.website_link] if p)
+    right = (
+        f'<div style="font-family:Arial,sans-serif;font-size:22px;font-weight:bold;color:{v.text};">{v.name}</div>'
+        f'<div style="font-family:Arial,sans-serif;font-size:13px;font-weight:bold;color:{v.accent};padding-bottom:6px;">{v.title}</div>'
+        f'<div style="font-family:Arial,sans-serif;font-size:13px;color:{v.text};line-height:1.6;">{contacts}</div>'
+        f'<div style="padding-top:8px;">{v.social_html}</div>'
+    )
+    return (
+        '<table cellpadding="0" cellspacing="0" border="0" style="width:600px;"><tr>'
+        f'<td valign="middle" width="130">{_round_img(v.logo_src, 120)}</td>'
+        f'<td width="1" style="background:#dddddd;">&nbsp;</td>'
+        f'<td valign="middle" style="padding-left:20px;">{right}</td>'
+        '</tr></table>'
+    )
+
+
+def banner_hex(v: SigVals) -> str:
+    """Horizontal banner: brand/logo block on a teal panel (left), a framed
+    photo/logo in the centre, name + icon-bulleted contacts on the right.
+    (True hexagon clipping isn't email-safe, so the centre image is round.)"""
+    accent = v.accent
+    left = (
+        f'<div style="font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;">{v.company or "BRAND NAME"}</div>'
+        + (f'<div style="font-family:Arial,sans-serif;font-size:11px;color:#e6f2f2;padding-bottom:8px;">{v.title}</div>' if v.title else '')
+        + f'<div style="padding-top:8px;">{v.social_html}</div>'
+    )
+    contact_rows = "".join(
+        f'<tr><td style="font-family:Arial,sans-serif;font-size:12px;color:{v.text};padding:3px 0;">{p}</td></tr>'
+        for p in [v.phone, v.email_link, v.website_link, v.address] if p)
+    right = (
+        f'<div style="font-family:Arial,sans-serif;font-size:18px;font-weight:bold;color:{accent};">{v.name}</div>'
+        f'<div style="font-family:Arial,sans-serif;font-size:12px;font-weight:bold;color:{v.text};padding-bottom:6px;">{v.title}</div>'
+        f'<table cellpadding="0" cellspacing="0" border="0">{contact_rows}</table>'
+    )
+    return (
+        '<table cellpadding="0" cellspacing="0" border="0" style="width:600px;border:1px solid #e2e2e2;"><tr>'
+        f'<td valign="middle" width="150" style="background:{accent};padding:16px;">{left}</td>'
+        f'<td valign="middle" width="140" align="center" style="padding:10px;">{_round_img(v.logo_src, 110)}</td>'
+        f'<td valign="middle" style="padding:12px 16px;">{right}</td>'
+        '</tr></table>'
+    )
+
+
 PRO_LAYOUTS = {"sidebar": sidebar, "banner_top": banner_top,
-               "elegant": elegant, "card": card}
+               "elegant": elegant, "card": card,
+               "photo_circle": photo_circle, "banner_hex": banner_hex}

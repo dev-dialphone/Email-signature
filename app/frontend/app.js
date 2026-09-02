@@ -146,6 +146,8 @@ const LAYOUTS = [
   ['banner_top','Banner top','Logo + name row, full-width divider, centred contacts'],
   ['elegant','Elegant','Centred serif, uppercase name — premium/executive feel'],
   ['card','Card','Bordered business-card box with an accent header bar'],
+  ['photo_circle','Photo circle','Round logo/photo left, divider, name + social right'],
+  ['banner_hex','Banner','Horizontal banner: brand panel, centre photo, contacts right'],
 ];
 
 let sigSubTab = 'fields';   // 'fields' | 'design'

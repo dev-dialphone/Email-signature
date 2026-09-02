@@ -134,6 +134,7 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         website_link=website_link,
         logo_html=_logo_html(sig, base_url),
         social_html=_social_row(social_pairs, icon_style=icon_style),
+        logo_src=_absolute_url(sig["logo_url"], base_url) if sig.get("logo_url") else "",
         accent=accent,
         text=theme.get("text", "#333333"),
         logo_pos=sig.get("logo_pos", "right") or "right",
