@@ -389,8 +389,18 @@ def apply(request: Request, user: dict = Depends(require_role("admin"))):
     """Render + store each employee's personalized signature. Delivery is via the
     Gmail browser extension (GET /api/resolve), so no Google Workspace connection
     is required. (The optional Workspace auto-push path lives behind
-    GOOGLE_MODE=real / RealGoogleProvider and is not gated here.)"""
+    GOOGLE_MODE=real / RealGoogleProvider and is not gated here.)
+
+    Layout exclusivity: an ENABLED layout in use by another entity can't be
+    applied here, so no two entities end up with the same design (409)."""
     tid = _tenant_of(user)
+    my = db.ensure_sig_row(tid)
+    clash = db.q_one(
+        "SELECT t.name AS name FROM sig_settings s JOIN tenants t ON t.id=s.tenant_id "
+        "WHERE s.layout=? AND s.enabled=1 AND s.tenant_id<>?",
+        (my["layout"], tid))
+    if clash:
+        raise HTTPException(409, f"That layout is already used by {clash['name']} — pick a different design.")
     base_url = _public_base(request)
     return sync.apply_signatures(tid, base_url)
 

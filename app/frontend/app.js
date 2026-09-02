@@ -518,7 +518,7 @@ async function applyView() {
       if (r.skipped) { $('#am').textContent = '⚠ ' + r.skipped + ' — turn the signature ON in the Signature tab.'; return; }
       if (!r.total)  { $('#am').textContent = '⚠ No employees yet — add them in the Directory tab.'; return; }
       $('#am').textContent = `Applied to ${r.applied}/${r.total}`; applyView();
-    } catch(e){ $('#am').textContent = 'Error: ' + e.message; }
+    } catch(e){ $('#am').textContent = '⚠ ' + e.message; }
   };
 }
 window.viewSig = async (email) => {

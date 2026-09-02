@@ -165,6 +165,16 @@ check("apply applies to employees", r.get("applied") == 1 and r.get("total") == 
 log = c.get("/api/sync-log", headers=H(a1)).json()
 check("sync log recorded", len(log) == 1 and log[0]["status"] == "ok")
 
+# Layout exclusivity: a layout enabled+applied by A can't be applied by B (409).
+a1_layout = c.get("/api/signature", headers=H(a1)).json()["layout"]
+c.patch("/api/signature", headers=H(a2), json={"enabled": True, "layout": a1_layout})
+c.post("/api/employees", headers=H(a2), json={"name": "Bob", "email": f"bob@{d2}"})
+rex = c.post("/api/apply", headers=H(a2))
+check("cross-entity same layout blocked -> 409", rex.status_code == 409)
+check("clash message names the other entity", "Acme" in rex.json().get("detail", ""))
+c.patch("/api/signature", headers=H(a2), json={"layout": "elegant"})
+check("different layout applies ok", c.post("/api/apply", headers=H(a2)).status_code == 200)
+
 print("== RESOLVE (public extension) ==")
 r = c.get(f"/api/resolve?email=asha@{d1}").json()
 check("resolve found + personalized", r["found"] and "Asha" in r["html"] and f"asha@{d1}" in r["html"])
