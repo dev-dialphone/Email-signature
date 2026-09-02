@@ -3,6 +3,7 @@ Ported from the extracted module; the `settings.PUBLIC_BASE_URL` dependency is
 replaced by a plain base_url argument (standalone app has no global settings)."""
 from html import escape
 from .sig_layouts import SigVals, LOGO_SIZES, render_layout
+from .sig_cta import derive_cta_qr
 from .sig_theme import theme_for
 
 
@@ -120,10 +121,10 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         ("youtube", sig.get("youtube") or ""), ("linkedin", sig.get("linkedin") or ""),
         ("instagram", sig.get("instagram") or ""),
     ]
-    # Title: bold + dark like name/company (was faint grey). Wrapping the value
-    # itself carries the styling into every layout with no per-layout edits.
+    # Title: bold + dark like name/company; wrapping the value carries styling into every layout.
     _title = escape(user.get("title") or "Sales Representative")
     title_html = f'<strong style="color:#333333;">{_title}</strong>' if _title else ""
+    cta_url, qr_src = derive_cta_qr(website, email)  # cta_button / qr_card / dark
     vals = SigVals(
         name=escape(user.get("name") or ""),
         title=title_html,
@@ -135,10 +136,11 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         logo_html=_logo_html(sig, base_url),
         social_html=_social_row(social_pairs, icon_style=icon_style),
         logo_src=_absolute_url(sig["logo_url"], base_url) if sig.get("logo_url") else "",
-        accent=accent,
-        text=theme.get("text", "#333333"),
+        accent=accent, text=theme.get("text", "#333333"),
         logo_pos=sig.get("logo_pos", "right") or "right",
         social_pos=sig.get("social_pos", "below_logo") or "below_logo",
+        cta_url=cta_url, cta_label=sig.get("cta_label") or "Book a call", qr_src=qr_src,
+        tagline=escape(sig["tagline"]) if sig.get("tagline") else "",
     )
     # The admin's chosen layout ALWAYS wins (so the Design picker works); the
     # theme only supplies a starting default the first time, when no layout is

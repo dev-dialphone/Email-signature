@@ -25,6 +25,10 @@ class SigVals:
     muted: str = "#888888"
     logo_pos: str = "right"          # right | below   (arranged layout)
     social_pos: str = "below_logo"   # with_name | below_logo | bottom
+    cta_url: str = ""                # booking/scheduling link (cta_button)
+    cta_label: str = ""              # e.g. "Book a call"
+    qr_src: str = ""                 # QR image URL (qr_card), derived from website
+    tagline: str = ""                # collected but unused by old layouts; promo_banner uses it
 
 
 def _row(value: str, color: str, size: int = 13) -> str:
@@ -116,8 +120,9 @@ def _register_extra() -> dict:
     from .sig_layouts_extra import stacked, stacked_social_bottom
     from .sig_layout_arranged import arranged
     from .sig_layouts_pro import PRO_LAYOUTS
+    from .sig_layouts_v2 import V2_LAYOUTS
     return {"stacked": stacked, "stacked_social_bottom": stacked_social_bottom,
-            "arranged": arranged, **PRO_LAYOUTS}
+            "arranged": arranged, **PRO_LAYOUTS, **V2_LAYOUTS}
 
 
 LAYOUTS = {"classic": classic, "modern": modern, "minimal": minimal,

@@ -148,6 +148,10 @@ const LAYOUTS = [
   ['card','Card','Bordered business-card box with an accent header bar'],
   ['photo_circle','Photo circle','Round logo/photo left, divider, name + social right'],
   ['banner_hex','Banner','Horizontal banner: brand panel, centre photo, contacts right'],
+  ['cta_button','CTA button','Single column + a solid "Book a call" pill button'],
+  ['qr_card','QR card','Bordered card with a scan-to-connect QR code'],
+  ['promo_banner','Promo banner','Full-width brand/GIF banner strip over the details'],
+  ['dark','Dark mode','Inverted dark block, light text, accent name + button'],
 ];
 
 let sigSubTab = 'fields';   // 'fields' | 'design'
