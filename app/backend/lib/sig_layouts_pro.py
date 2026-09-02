@@ -114,34 +114,30 @@ def photo_circle(v: SigVals) -> str:
 
 
 def banner_hex(v: SigVals) -> str:
-    """Horizontal banner: brand/logo block on a teal panel (left), a framed
-    photo/logo in the centre, name + icon-bulleted contacts on the right.
-    (True hexagon clipping isn't email-safe, so the centre image is round.)"""
+    """Left column: large logo with social icons beneath it. Right column:
+    name, title and stacked contacts. No coloured side panel."""
     accent = v.accent
-    left = (
-        f'<div style="font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;">{v.company or "BRAND NAME"}</div>'
-        + (f'<div style="font-family:Arial,sans-serif;font-size:11px;color:#e6f2f2;padding-bottom:8px;">{v.title}</div>' if v.title else '')
-        + f'<div style="padding-top:8px;">{v.social_html}</div>'
-    )
     contact_rows = "".join(
-        f'<tr><td style="font-family:Arial,sans-serif;font-size:12px;color:{v.text};padding:3px 0;">{p}</td></tr>'
+        f'<tr><td style="font-family:Arial,sans-serif;font-size:13px;color:{v.text};padding:3px 0;">{p}</td></tr>'
         for p in [v.phone, v.email_link, v.website_link, v.address] if p)
     right = (
-        f'<div style="font-family:Arial,sans-serif;font-size:18px;font-weight:bold;color:{accent};">{v.name}</div>'
-        f'<div style="font-family:Arial,sans-serif;font-size:12px;font-weight:bold;color:{v.text};padding-bottom:6px;">{v.title}</div>'
+        f'<div style="font-family:Arial,sans-serif;font-size:20px;font-weight:bold;color:{accent};">{v.name}</div>'
+        f'<div style="font-family:Arial,sans-serif;font-size:13px;font-weight:bold;color:{v.text};padding-bottom:6px;">{v.title}</div>'
         f'<table cellpadding="0" cellspacing="0" border="0">{contact_rows}</table>'
     )
-    # Brand logos are usually WIDE wordmarks — never force them into a cropped
-    # circle. Scale to fit the centre cell instead.
-    centre_logo = (
-        f'<img src="{v.logo_src}" alt="" style="max-width:150px;max-height:95px;'
-        f'width:auto;height:auto;display:block;margin:0 auto;border:0;" />'
+    # Bigger logo, with the social row directly under it.
+    left_logo = (
+        f'<img src="{v.logo_src}" alt="" style="max-width:200px;max-height:120px;'
+        f'width:auto;height:auto;display:block;border:0;" />'
         if v.logo_src else "")
+    left = (
+        f'<div style="padding-bottom:10px;">{left_logo}</div>'
+        f'<div>{v.social_html}</div>'
+    )
     return (
-        '<table cellpadding="0" cellspacing="0" border="0" style="width:600px;border:1px solid #e2e2e2;"><tr>'
-        f'<td valign="middle" width="150" style="background:{accent};padding:16px;">{left}</td>'
-        f'<td valign="middle" width="170" align="center" style="padding:10px 12px;">{centre_logo}</td>'
-        f'<td valign="middle" style="padding:12px 16px;">{right}</td>'
+        '<table cellpadding="0" cellspacing="0" border="0" style="width:600px;"><tr>'
+        f'<td valign="middle" width="220" style="padding-right:20px;">{left}</td>'
+        f'<td valign="middle">{right}</td>'
         '</tr></table>'
     )
 
