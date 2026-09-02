@@ -20,11 +20,15 @@ def sidebar(v: SigVals) -> str:
         f'<tr><td style="font-family:Arial,sans-serif;font-size:13px;color:{v.text};line-height:1.6;">{_contacts(v)}</td></tr>'
         f'<tr><td style="padding-top:10px;">{v.social_html}</td></tr></table>'
     )
+    # Give the logo a prominent, fixed cell so it reads well in email regardless
+    # of the admin's logo-size slider (scale to fit, never crop).
+    logo = (f'<img src="{v.logo_src}" alt="" style="max-width:170px;max-height:90px;'
+            f'width:auto;height:auto;display:block;border:0;" />' if v.logo_src else v.logo_html)
     return (
         '<table cellpadding="0" cellspacing="0" border="0" style="width:600px;"><tr>'
         f'<td width="6" style="background:{v.accent};border-radius:3px;">&nbsp;</td>'
-        f'<td valign="top" style="padding:0 20px;">{left}</td>'
-        f'<td valign="top" align="right">{v.logo_html}</td>'
+        f'<td valign="middle" style="padding:0 20px;">{left}</td>'
+        f'<td valign="middle" align="right" width="180">{logo}</td>'
         '</tr></table>'
     )
 
@@ -97,12 +101,12 @@ def photo_circle(v: SigVals) -> str:
     )
     # Fit the (usually wide) company logo without cropping it into a circle.
     left_logo = (
-        f'<img src="{v.logo_src}" alt="" style="max-width:120px;max-height:110px;'
+        f'<img src="{v.logo_src}" alt="" style="max-width:160px;max-height:130px;'
         f'width:auto;height:auto;display:block;border:0;" />'
         if v.logo_src else "")
     return (
         '<table cellpadding="0" cellspacing="0" border="0" style="width:600px;"><tr>'
-        f'<td valign="middle" width="140">{left_logo}</td>'
+        f'<td valign="middle" width="180">{left_logo}</td>'
         f'<td width="1" style="background:#dddddd;">&nbsp;</td>'
         f'<td valign="middle" style="padding-left:20px;">{right}</td>'
         '</tr></table>'
@@ -130,13 +134,13 @@ def banner_hex(v: SigVals) -> str:
     # Brand logos are usually WIDE wordmarks — never force them into a cropped
     # circle. Scale to fit the centre cell instead.
     centre_logo = (
-        f'<img src="{v.logo_src}" alt="" style="max-width:130px;max-height:80px;'
+        f'<img src="{v.logo_src}" alt="" style="max-width:150px;max-height:95px;'
         f'width:auto;height:auto;display:block;margin:0 auto;border:0;" />'
         if v.logo_src else "")
     return (
         '<table cellpadding="0" cellspacing="0" border="0" style="width:600px;border:1px solid #e2e2e2;"><tr>'
-        f'<td valign="middle" width="160" style="background:{accent};padding:16px;">{left}</td>'
-        f'<td valign="middle" width="150" align="center" style="padding:10px 12px;">{centre_logo}</td>'
+        f'<td valign="middle" width="150" style="background:{accent};padding:16px;">{left}</td>'
+        f'<td valign="middle" width="170" align="center" style="padding:10px 12px;">{centre_logo}</td>'
         f'<td valign="middle" style="padding:12px 16px;">{right}</td>'
         '</tr></table>'
     )
