@@ -90,7 +90,7 @@ check("get signature ok", c.get("/api/signature", headers=H(a1)).status_code == 
 NO_COMPANY = {"minimal", "compact", "photo_circle", "banner_hex"}
 for lay in ["classic", "modern", "minimal", "bold", "compact", "stacked", "stacked_social_bottom", "arranged",
             "sidebar", "banner_top", "elegant", "card", "photo_circle", "banner_hex",
-            "cta_button", "qr_card", "promo_banner", "dark"]:
+            "cta_button", "qr_card", "promo_banner", "dark", "professional"]:
     r = c.patch("/api/signature", headers=H(a1), json={"enabled": True, "layout": lay, "company_name": "ACME CORP", "website": "https://acme.com"})
     check(f"patch layout {lay}", r.status_code == 200 and r.json()["layout"] == lay)
     pv = c.get("/api/signature/preview", headers=H(a1)).json()

@@ -152,6 +152,7 @@ const LAYOUTS = [
   ['qr_card','QR card','Bordered card with a scan-to-connect QR code'],
   ['promo_banner','Promo banner','Full-width brand/GIF banner strip over the details'],
   ['dark','Dark mode','Inverted dark block, light text, accent name + button'],
+  ['professional','Professional','Full card: big logo left, iconised contacts, social row, support + website footer'],
 ];
 
 let sigSubTab = 'fields';   // 'fields' | 'design'
