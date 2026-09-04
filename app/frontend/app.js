@@ -248,22 +248,30 @@ async function signatureView() {
     </div></div>`);
 
   // keep hidden sub-tab's inputs from being lost: both are in the DOM already.
-  // Live preview refresh (debounced) so logo-size changes show without saving.
   const preview = $('.preview');
-  let previewTimer = null;
-  const refreshPreview = () => {
-    clearTimeout(previewTimer);
-    previewTimer = setTimeout(async () => {
-      try { const p = await api('/signature/preview', {method:'POST', body:collectSig()});
-        if (preview && p && p.html) preview.innerHTML = p.html; } catch(e){}
-    }, 180);
+  // Resize the logo IN PLACE so the social-media icons never reload/flicker.
+  // (Re-fetching the whole preview HTML on every drag reloads every <img>,
+  // which is why the social logos appeared to "break" while sliding.)
+  const LOGO_PX = {small: 120, medium: 180, large: 240};
+  const applyLogoSize = (val) => {
+    let px = LOGO_PX[val];
+    if (px == null) px = Math.min(500, Math.max(60, parseInt(val, 10) || 240));
+    // The company logo is the first <img> in the preview whose width is set in px.
+    const imgs = preview ? preview.querySelectorAll('img') : [];
+    for (const im of imgs) {
+      // skip the small fixed social icons (18–22px); resize only the brand logo
+      if (im.closest('a')) continue;
+      im.style.width = px + 'px'; im.style.maxWidth = px + 'px'; im.style.height = 'auto';
+      break;
+    }
   };
   const ls = $('#ls'), pxwrap = $('#pxwrap');
   if (ls) ls.onchange = () => {
-    pxwrap.style.display = ls.value==='__px__' ? '' : 'none'; refreshPreview();
+    pxwrap.style.display = ls.value==='__px__' ? '' : 'none';
+    applyLogoSize(ls.value==='__px__' ? ($('#pxrange') ? $('#pxrange').value : '240') : ls.value);
   };
   const pxr = $('#pxrange');
-  if (pxr) pxr.oninput = () => { $('#pxlbl').textContent = pxr.value; refreshPreview(); };
+  if (pxr) pxr.oninput = () => { $('#pxlbl').textContent = pxr.value; applyLogoSize(pxr.value); };
 
   $('#logof') && ($('#logof').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
