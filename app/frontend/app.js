@@ -152,6 +152,7 @@ const LAYOUTS = [
   ['qr_card','QR card','Bordered card with a scan-to-connect QR code'],
   ['promo_banner','Promo banner','Full-width brand/GIF banner strip over the details'],
   ['dark','Dark mode','Inverted dark block, light text, accent name + button'],
+  ['salamtalk_pro','Salamtalk','Blue left band, large title, big logo, outline social circles'],
 ];
 
 let sigSubTab = 'fields';   // 'fields' | 'design'

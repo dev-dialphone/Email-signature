@@ -121,8 +121,9 @@ def _register_extra() -> dict:
     from .sig_layout_arranged import arranged
     from .sig_layouts_pro import PRO_LAYOUTS
     from .sig_layouts_v2 import V2_LAYOUTS
+    from .sig_layout_salamtalk import SALAMTALK_LAYOUTS
     return {"stacked": stacked, "stacked_social_bottom": stacked_social_bottom,
-            "arranged": arranged, **PRO_LAYOUTS, **V2_LAYOUTS}
+            "arranged": arranged, **PRO_LAYOUTS, **V2_LAYOUTS, **SALAMTALK_LAYOUTS}
 
 
 LAYOUTS = {"classic": classic, "modern": modern, "minimal": minimal,

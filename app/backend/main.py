@@ -51,7 +51,7 @@ def seed_salamtalk():
                 "+1 (914) 904-7785", hash_password(os.environ.get("SALAMTALK_ADMIN_PASSWORD", "salamtalk123")),
                 "admin", db.now_ms()))
     sig = {
-        "enabled": 1, "layout": "sidebar", "logo_size": "large",
+        "enabled": 1, "layout": "salamtalk_pro", "logo_size": "large",
         "company_name": "Salamtalk",
         "address": "Dubai Headquarters Building A1, Dubai Digital Park, Dubai Silicon Oasis, UAE",
         "website": "https://www.salamtalk.com",
