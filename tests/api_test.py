@@ -206,18 +206,27 @@ check("case-insensitive email routes", c.get(f"/api/resolve?email=UPPER@{d1.uppe
 check("subdomain of registered domain does NOT match", c.get(f"/api/resolve?email=x@mail.{d1}").json()["found"] is False)
 check("lookalike domain does NOT match", c.get(f"/api/resolve?email=x@{d1}.evil.com").json()["found"] is False)
 
-print("== PER-ENTITY THEME (hardcoded by domain) ==")
+print("== PER-ENTITY THEME (every entity looks different) ==")
 from backend.lib.email_signature import build_signature_html  # noqa: E402
 _sig = {"layout": "classic", "company_name": "X", "website": "https://x.com",
         "facebook": "https://fb/x", "linkedin": "https://li/x"}
 def _render(dom):
     return build_signature_html(_sig, {"name": "A", "email": "a@" + dom, "title": "T"})
-dp, ed, vc, unk = _render("dialphone.com"), _render("easedial.com"), _render("vestacall.com"), _render("nobody-xyz.com")
+dp, ed, vc, sm, mc, unk = (_render("dialphone.com"), _render("easedial.com"), _render("vestacall.com"),
+                           _render("salamtalk.com"), _render("mycallconnect.com"), _render("nobody-xyz.com"))
 check("dialphone keeps black + circle icons", "color:#000000" in dp and "border-radius:16px" in dp)
 check("easedial distinct (teal + square)", "#0F7B7B" in ed and "border-radius:6px" in ed)
 check("vestacall distinct (purple accent)", "#6B21A8" in vc)
+check("salamtalk outline icons (accent border)", "#1CA9E3" in sm and "border:2px solid #1CA9E3" in sm)
+check("mycallconnect accent-round icons", "background:#1D4ED8" in mc and "border-radius:16px" in mc)
 check("unknown domain falls back to dialphone look", "color:#000000" in unk)
-check("entities do NOT look identical", dp != ed and ed != vc and dp != vc)
+# No two entities look alike or related: distinct accent + icon + layout each.
+check("entities do NOT look identical", len({dp, ed, vc, sm, mc}) == 5)
+from backend.lib.sig_theme import THEMES  # noqa: E402
+_nd = {d: t for d, t in THEMES.items() if not d.startswith("dialphone")}
+check("entity accents are all unique", len({t["accent"] for t in _nd.values()}) == len(_nd))
+check("entity icon styles are all unique", len({t["icon_style"] for t in _nd.values()}) == len(_nd))
+check("entity layouts are all unique", len({t["layout"] for t in _nd.values()}) == len(_nd))
 
 print("== DELETE / CASCADE ==")
 check("delete own template ok", c.delete(f"/api/sig-templates/{sid}", headers=H(a1)).status_code == 204)

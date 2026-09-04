@@ -1,15 +1,17 @@
 """Per-entity hardcoded visual themes so signatures from different entities do
-NOT look like they belong to the same company. Resolved by the sender's email
-domain. DialPhone keeps the current look (the DEFAULT); every other listed
-entity gets a distinct accent colour, social-icon shape and default layout.
+NOT look alike or related. Resolved by the sender's email domain. Every listed
+entity gets its OWN accent colour, social-icon style AND default layout — no two
+entities share any of the three. Unknown domains fall back to DEFAULT.
 
-Adding a new entity = add one line to THEMES keyed by its domain. Unknown
-domains fall back to DEFAULT (current DialPhone look), so nothing breaks.
+Adding a new entity = add one line to THEMES; give it an accent/icon_style/layout
+not already used by another entity.
 
-icon_style: 'circle' (filled round button, current) | 'square' (rounded rect) |
-'plain' (brand-colour glyph, no filled button)."""
+icon_style: 'circle' (filled round brand button) | 'square' (brand rounded rect) |
+'plain' (brand-colour glyph, no button) | 'accent_round' (solid accent round) |
+'accent_square' (solid accent rounded rect) | 'outline' (white, accent border) |
+'mono' (charcoal round button)."""
 
-# The original DialPhone look — also the fallback for any unlisted domain.
+# Fallback for any unlisted domain (the original DialPhone look).
 DEFAULT = {
     "accent": "#000000",       # link/name colour
     "text": "#333333",         # body text colour
@@ -17,19 +19,18 @@ DEFAULT = {
     "layout": None,            # None = keep whatever layout the admin picked
 }
 
-# Distinct presets. Keyed by exact registered domain (lowercase).
+# Distinct presets, keyed by exact registered domain (lowercase).
+# INVARIANT: unique accent + unique icon_style + unique layout per entity.
 THEMES = {
-    # DialPhone family — explicitly the current look.
+    # DialPhone family — the original look (circle icons, admin-chosen layout).
     "dialphone.com": DEFAULT,
     "dialphone.ai":  DEFAULT,
 
-    # Each other entity: different accent + icon shape + a different default
-    # layout so the structure itself differs, not just colour.
-    "easedial.com":  {"accent": "#0F7B7B", "text": "#222222", "icon_style": "square", "layout": "banner_top"},
-    "vestacall.com": {"accent": "#6B21A8", "text": "#222222", "icon_style": "plain",  "layout": "elegant"},
-    # Salamtalk brand blue (the wifi mark in their logo), not brick/orange.
-    "salamtalk.com": {"accent": "#1CA9E3", "text": "#222222", "icon_style": "square", "layout": "card"},
-    "mycallconnect.com": {"accent": "#1D4ED8", "text": "#222222", "icon_style": "circle", "layout": "sidebar"},
+    "easedial.com":      {"accent": "#0F7B7B", "text": "#222222", "icon_style": "square",        "layout": "banner_top"},
+    "vestacall.com":     {"accent": "#6B21A8", "text": "#222222", "icon_style": "plain",         "layout": "elegant"},
+    # Salamtalk brand blue (the wifi mark in their logo).
+    "salamtalk.com":     {"accent": "#1CA9E3", "text": "#222222", "icon_style": "outline",       "layout": "card"},
+    "mycallconnect.com": {"accent": "#1D4ED8", "text": "#222222", "icon_style": "accent_round",  "layout": "sidebar"},
 }
 
 

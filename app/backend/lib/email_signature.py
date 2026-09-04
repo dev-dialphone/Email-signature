@@ -24,11 +24,16 @@ _SOCIAL = {
 }
 
 
-def _social_row(pairs: list[tuple[str, str]], size: int = 32, icon_style: str = "circle") -> str:
-    # icon_style controls the button shape so entities look visually distinct:
-    #   circle -> filled round button (original)
-    #   square -> filled rounded-rectangle button
-    #   plain  -> brand-colour glyph on transparent bg (no filled button)
+def _social_row(pairs: list[tuple[str, str]], size: int = 32,
+                icon_style: str = "circle", accent: str = "#000000") -> str:
+    # icon_style makes each entity's socials visually distinct yet professional:
+    #   circle       -> filled round brand-colour button (original)
+    #   square       -> filled rounded-rect brand-colour button
+    #   plain        -> brand-colour glyph on transparent bg (no button)
+    #   accent_round -> solid accent-colour round button, white glyph
+    #   accent_square-> solid accent-colour rounded-rect, white glyph
+    #   outline      -> white button, accent border, brand-colour glyph
+    #   mono         -> dark charcoal round button, white glyph
     cells = []
     for label, url in pairs:
         if not url:
@@ -37,11 +42,22 @@ def _social_row(pairs: list[tuple[str, str]], size: int = 32, icon_style: str = 
         if not meta:
             continue
         if icon_style == "plain":
-            # coloured icon (brand tint) on no background
             glyph = meta["icon"].replace("/ffffff/", f'/{meta["bg"].lstrip("#")}/')
             inner = (f'<td width="{size}" height="{size}" style="text-align:center;vertical-align:middle;">'
                      f'<img src="{glyph}" width="22" height="22" alt="{label}" style="display:block;margin:auto;border:0;" /></td>')
-        else:
+        elif icon_style == "outline":
+            glyph = meta["icon"].replace("/ffffff/", f'/{meta["bg"].lstrip("#")}/')
+            inner = (f'<td width="{size}" height="{size}" style="background:#ffffff;'
+                     f'border:2px solid {accent};border-radius:{size // 2}px;'
+                     f'text-align:center;vertical-align:middle;">'
+                     f'<img src="{glyph}" width="16" height="16" alt="{label}" style="display:block;margin:auto;border:0;" /></td>')
+        elif icon_style in ("accent_round", "accent_square", "mono"):
+            bg = "#2b2b2b" if icon_style == "mono" else accent
+            radius = 6 if icon_style == "accent_square" else size // 2
+            inner = (f'<td width="{size}" height="{size}" style="background:{bg};'
+                     f'border-radius:{radius}px;text-align:center;vertical-align:middle;">'
+                     f'<img src="{meta["icon"]}" width="18" height="18" alt="{label}" style="display:block;margin:auto;border:0;" /></td>')
+        else:  # circle | square -> brand-colour filled button
             radius = size // 2 if icon_style == "circle" else 6
             inner = (f'<td width="{size}" height="{size}" style="background:{meta["bg"]};'
                      f'border-radius:{radius}px;text-align:center;vertical-align:middle;">'
@@ -134,7 +150,7 @@ def build_signature_html(sig: dict, user: dict, base_url: str | None = None) -> 
         address=escape(sig["address"]) if sig.get("address") else "",
         website_link=website_link,
         logo_html=_logo_html(sig, base_url),
-        social_html=_social_row(social_pairs, icon_style=icon_style),
+        social_html=_social_row(social_pairs, icon_style=icon_style, accent=accent),
         logo_src=_absolute_url(sig["logo_url"], base_url) if sig.get("logo_url") else "",
         accent=accent, text=theme.get("text", "#333333"),
         logo_pos=sig.get("logo_pos", "right") or "right",
