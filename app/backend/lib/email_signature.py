@@ -15,18 +15,18 @@ def _absolute_url(url: str, base_url: str | None = None) -> str:
     return url
 
 
-from .sig_icons import SOCIAL_ICON_DATA
+from .sig_icons import SOCIAL_ICON_DATA, SOCIAL_ICON_BRAND
 
-# White glyphs are inlined (data-URIs) so filled-button styles render without a
-# CDN round-trip — reliable in the preview pane and in email. The recolour URL
-# (used by plain/outline) is kept for brand-tinted glyphs via string replace.
-_ICON8 = "https://img.icons8.com/ios-filled/50/ffffff/{}.png"
+# ALL glyphs are inlined (base64 data-URIs) so NO social icon depends on the
+# icons8 CDN — they render reliably in the preview pane and in email, and never
+# break when the logo is resized/re-rendered. "icon" = white glyph (filled
+# buttons), "brand" = brand-tinted glyph (plain/outline styles).
 _SOCIAL = {
-    "facebook":  {"bg": "#1877F2", "icon": SOCIAL_ICON_DATA["facebook"],  "recolor": _ICON8.format("facebook-new")},
-    "twitter":   {"bg": "#000000", "icon": SOCIAL_ICON_DATA["twitter"],   "recolor": _ICON8.format("twitterx")},
-    "youtube":   {"bg": "#FF0000", "icon": SOCIAL_ICON_DATA["youtube"],   "recolor": _ICON8.format("youtube-play")},
-    "linkedin":  {"bg": "#0A66C2", "icon": SOCIAL_ICON_DATA["linkedin"],  "recolor": _ICON8.format("linkedin")},
-    "instagram": {"bg": "#E1306C", "icon": SOCIAL_ICON_DATA["instagram"], "recolor": _ICON8.format("instagram-new")},
+    "facebook":  {"bg": "#1877F2", "icon": SOCIAL_ICON_DATA["facebook"],  "brand": SOCIAL_ICON_BRAND["facebook"]},
+    "twitter":   {"bg": "#000000", "icon": SOCIAL_ICON_DATA["twitter"],   "brand": SOCIAL_ICON_BRAND["twitter"]},
+    "youtube":   {"bg": "#FF0000", "icon": SOCIAL_ICON_DATA["youtube"],   "brand": SOCIAL_ICON_BRAND["youtube"]},
+    "linkedin":  {"bg": "#0A66C2", "icon": SOCIAL_ICON_DATA["linkedin"],  "brand": SOCIAL_ICON_BRAND["linkedin"]},
+    "instagram": {"bg": "#E1306C", "icon": SOCIAL_ICON_DATA["instagram"], "brand": SOCIAL_ICON_BRAND["instagram"]},
 }
 
 
@@ -48,12 +48,11 @@ def _social_row(pairs: list[tuple[str, str]], size: int = 32,
         if not meta:
             continue
         if icon_style == "plain":
-            # brand-tinted glyph via the recolour URL (data-URI can't be restyled)
-            glyph = meta["recolor"].replace("/ffffff/", f'/{meta["bg"].lstrip("#")}/')
+            glyph = meta["brand"]
             inner = (f'<td width="{size}" height="{size}" style="text-align:center;vertical-align:middle;">'
                      f'<img src="{glyph}" width="22" height="22" alt="{label}" style="display:block;margin:auto;border:0;" /></td>')
         elif icon_style == "outline":
-            glyph = meta["recolor"].replace("/ffffff/", f'/{meta["bg"].lstrip("#")}/')
+            glyph = meta["brand"]
             inner = (f'<td width="{size}" height="{size}" style="background:#ffffff;'
                      f'border:2px solid {accent};border-radius:{size // 2}px;'
                      f'text-align:center;vertical-align:middle;">'
