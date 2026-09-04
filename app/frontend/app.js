@@ -159,8 +159,14 @@ let sigSubTab = 'fields';   // 'fields' | 'design'
 // Gather every editable value on the panel into a PATCH body (both sub-tabs are
 // in the DOM at once; hidden ones still carry their persisted values).
 function collectSig() {
+  // When "Custom pixels…" is chosen, logo_size must be the slider's px value,
+  // NOT the literal "__px__" sentinel — otherwise it persists to the signature
+  // and every saved template as an invalid size. Resolve it here so ALL callers
+  // (save, save-as-template, copy, download, pick-layout) store the real width.
+  const ls = $('#ls');
+  const sizeVal = (ls && ls.value==='__px__') ? ($('#pxrange') ? $('#pxrange').value : '240') : (ls ? ls.value : 'large');
   const body = { enabled: $('#en').value==='1', layout:$('#lay').value,
-                 logo_size:$('#ls').value };
+                 logo_size:sizeVal };
   const lp = $('#logo_pos'), sp = $('#social_pos');
   if (lp) body.logo_pos = lp.value;
   if (sp) body.social_pos = sp.value;
@@ -242,10 +248,22 @@ async function signatureView() {
     </div></div>`);
 
   // keep hidden sub-tab's inputs from being lost: both are in the DOM already.
+  // Live preview refresh (debounced) so logo-size changes show without saving.
+  const preview = $('.preview');
+  let previewTimer = null;
+  const refreshPreview = () => {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(async () => {
+      try { const p = await api('/signature/preview', {method:'POST', body:collectSig()});
+        if (preview && p && p.html) preview.innerHTML = p.html; } catch(e){}
+    }, 180);
+  };
   const ls = $('#ls'), pxwrap = $('#pxwrap');
-  if (ls) ls.onchange = () => { pxwrap.style.display = ls.value==='__px__' ? '' : 'none'; };
+  if (ls) ls.onchange = () => {
+    pxwrap.style.display = ls.value==='__px__' ? '' : 'none'; refreshPreview();
+  };
   const pxr = $('#pxrange');
-  if (pxr) pxr.oninput = () => { $('#pxlbl').textContent = pxr.value; };
+  if (pxr) pxr.oninput = () => { $('#pxlbl').textContent = pxr.value; refreshPreview(); };
 
   $('#logof') && ($('#logof').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -255,9 +273,7 @@ async function signatureView() {
     catch(err){ $('#msg').textContent = err.message; }
   });
   $('#save').onclick = async () => {
-    const body = collectSig();
-    if ($('#ls') && $('#ls').value==='__px__') body.logo_size = $('#pxrange').value;
-    await api('/signature',{method:'PATCH',body});
+    await api('/signature',{method:'PATCH',body:collectSig()});
     $('#msg').textContent='Saved ✓'; signatureView();
   };
   $('#test').onclick = async () => {

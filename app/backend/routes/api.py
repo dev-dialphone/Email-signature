@@ -214,16 +214,28 @@ def update_signature(body: SigUpdate, user: dict = Depends(require_role("admin")
     return db.ensure_sig_row(tid)
 
 
-@router.get("/signature/preview")
-def preview(request: Request, user: dict = Depends(require_role("admin"))):
-    """Live preview using the admin's own identity as the sample person."""
-    tid = _tenant_of(user)
-    base_url = _public_base(request)
-    sig = sync._sig_config(db.ensure_sig_row(tid))
+def _render_preview(tid, user, base_url, draft: dict | None = None):
+    row = dict(db.ensure_sig_row(tid))
+    if draft:  # unsaved edits from the Design panel (e.g. live logo-size slider)
+        row.update({k: v for k, v in draft.items() if v is not None})
+    sig = sync._sig_config(row)
     sample = {"name": user["name"], "email": user["email"],
               "title": user["title"] or "Sales Representative", "phone": user["phone"]}
     html = build_signature_html(sig, sample, base_url)
     return {"html": sync._wrap_with_promo(tid, html, base_url)}
+
+
+@router.get("/signature/preview")
+def preview(request: Request, user: dict = Depends(require_role("admin"))):
+    """Live preview using the admin's own identity as the sample person."""
+    return _render_preview(_tenant_of(user), user, _public_base(request))
+
+
+@router.post("/signature/preview")
+def preview_draft(body: SigUpdate, request: Request, user: dict = Depends(require_role("admin"))):
+    """Preview UNSAVED edits (draft merged over the saved config, not persisted)."""
+    return _render_preview(_tenant_of(user), user, _public_base(request),
+                           body.model_dump(exclude_unset=True))
 
 
 @router.get("/signature/export")
