@@ -369,15 +369,34 @@ window.applyTpl = async (id) => {
 window.delTpl = async (id) => { await api(`/sig-templates/${id}`,{method:'DELETE'}); sigTemplatesView(); };
 
 // ---------- Admin: directory (employees) ----------
+let editingEmp = null;   // id of the employee row currently in edit mode
+
 async function directoryView() {
   const emps = await api('/employees');
-  const rows = emps.map(e=>`<tr><td>${e.name}</td><td>${e.email}</td><td>${e.title||''}</td>
+  const val = (s)=>String(s==null?'':s).replace(/"/g,'&quot;');
+  const rows = emps.map(e=>{
+    if (editingEmp === e.id) {
+      return `<tr>
+        <td><input id="ed-name-${e.id}" value="${val(e.name)}"/></td>
+        <td><input id="ed-email-${e.id}" value="${val(e.email)}"/></td>
+        <td><input id="ed-title-${e.id}" value="${val(e.title)}"/></td>
+        <td><input id="ed-phone-${e.id}" value="${val(e.phone)}"/></td>
+        <td><input id="ed-wa-${e.id}" value="${val(e.whatsapp)}"/></td>
+        <td><input id="ed-teams-${e.id}" value="${val(e.teams)}"/></td>
+        <td style="white-space:nowrap">
+          <button onclick="saveEmp('${e.id}')">Save</button>
+          <button class="sec" onclick="cancelEmp()">Cancel</button>
+          <span id="ed-msg-${e.id}" class="muted"></span></td></tr>`;
+    }
+    return `<tr><td>${e.name}</td><td>${e.email}</td><td>${e.title||''}</td>
     <td>${e.phone||''}</td><td>${e.whatsapp||''}</td><td>${e.teams||''}</td>
     <td style="white-space:nowrap">
+      <button class="sec" onclick="editEmp('${e.id}')">Edit</button>
       <button class="sec" onclick="copyEmpSig('${e.id}',this)">Copy for Gmail</button>
       <button class="sec" onclick="dlEmpSig('${e.id}','${e.email}')">HTML</button>
       <button class="sec" onclick="imgEmpSig('${e.id}','${e.email}',this)">Image</button>
-      <button class="warn" onclick="delEmp('${e.id}')">Remove</button></td></tr>`).join('');
+      <button class="warn" onclick="delEmp('${e.id}')">Remove</button></td></tr>`;
+  }).join('');
   $('#app').innerHTML = shell(`
     <div class="card"><h2>Employees (who receives the signature)</h2>
       <table><tr><th>Name</th><th>Email</th><th>Title</th><th>Phone</th><th>WhatsApp</th><th>Teams</th><th></th></tr>
@@ -403,6 +422,17 @@ async function directoryView() {
     } catch(e){ $('#emsg').textContent = e.message; }
   };
 }
+window.editEmp = (id) => { editingEmp = id; directoryView(); };
+window.cancelEmp = () => { editingEmp = null; directoryView(); };
+window.saveEmp = async (id) => {
+  try {
+    await api(`/employees/${id}`,{method:'PATCH',body:{
+      name:$('#ed-name-'+id).value, email:$('#ed-email-'+id).value,
+      title:$('#ed-title-'+id).value, phone:$('#ed-phone-'+id).value,
+      whatsapp:$('#ed-wa-'+id).value, teams:$('#ed-teams-'+id).value}});
+    editingEmp = null; directoryView();
+  } catch(e){ const m=$('#ed-msg-'+id); if(m) m.textContent = e.message; }
+};
 window.delEmp = async (id) => { await api(`/employees/${id}`,{method:'DELETE'}); directoryView(); };
 
 // Render signature HTML to a PNG in the browser (no server/headless needed).

@@ -128,6 +128,13 @@ c.delete(f"/api/employees/{_wid}", headers=H(a1))
 eid = emps[0]["id"]
 check("cross-tenant delete employee -> 404", c.delete(f"/api/employees/{eid}", headers=H(a2)).status_code == 404)
 check("employee still there after cross attempt", len(c.get("/api/employees", headers=H(a1)).json()) == 1)
+# Edit employee in place (no delete + recreate).
+er = c.patch(f"/api/employees/{eid}", headers=H(a1), json={"title": "Manager", "phone": "+1 555", "whatsapp": "+91999"})
+check("edit employee title/phone/whatsapp", er.status_code == 200 and er.json()["title"] == "Manager" and er.json()["phone"] == "+1 555")
+check("edit lowercases new email", c.patch(f"/api/employees/{eid}", headers=H(a1), json={"email": f"ASHA@{d1}"}).json()["email"] == f"asha@{d1}")
+check("edit off-domain email -> 422", c.patch(f"/api/employees/{eid}", headers=H(a1), json={"email": f"x@{d2}"}).status_code == 422)
+check("cross-tenant edit employee -> 404", c.patch(f"/api/employees/{eid}", headers=H(a2), json={"name": "Hacked"}).status_code == 404)
+check("edit unknown employee -> 404", c.patch("/api/employees/nope", headers=H(a1), json={"name": "X"}).status_code == 404)
 # Per-agent export: renders THAT agent's real identity (ready to paste), scoped to tenant.
 ee = c.get(f"/api/signature/export?employee_id={eid}", headers=H(a1)).json()
 check("per-agent export uses agent identity", "Asha" in ee["html"] and f"asha@{d1}" in ee["html"] and ee["for"] == f"asha@{d1}")

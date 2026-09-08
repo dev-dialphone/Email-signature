@@ -465,6 +465,40 @@ def add_employee(body: EmployeeIn, user: dict = Depends(require_role("admin"))):
     return {"ok": True}
 
 
+class EmployeeUpdate(BaseModel):
+    email: Optional[str] = None
+    name: Optional[str] = None
+    title: Optional[str] = None
+    phone: Optional[str] = None
+    whatsapp: Optional[str] = None
+    teams: Optional[str] = None
+
+
+@router.patch("/employees/{eid}")
+def update_employee(eid: str, body: EmployeeUpdate, user: dict = Depends(require_role("admin"))):
+    """Edit an employee in place (no delete + recreate). Tenant-scoped: 404 for
+    anyone else's employee. Email, if changed, must stay on the entity domain."""
+    tid = _tenant_of(user)
+    row = db.q_one("SELECT id FROM employees WHERE id=? AND tenant_id=?", (eid, tid))
+    if not row:
+        raise HTTPException(404, "Employee not found")
+    data = body.model_dump(exclude_unset=True)
+    if "email" in data and data["email"]:
+        email = data["email"].strip().lower()
+        t = db.q_one("SELECT domain FROM tenants WHERE id=?", (tid,))
+        if t["domain"] and not email.endswith("@" + t["domain"]):
+            raise HTTPException(422, f"Email must be on this entity's domain (@{t['domain']})")
+        data["email"] = email
+    if not data:
+        return db.q_one("SELECT * FROM employees WHERE id=?", (eid,))
+    sets = ", ".join(f"{k}=?" for k in data)
+    try:
+        db.execute(f"UPDATE employees SET {sets} WHERE id=? AND tenant_id=?", (*data.values(), eid, tid))
+    except Exception:
+        raise HTTPException(409, "Another employee already uses this email")
+    return db.q_one("SELECT * FROM employees WHERE id=?", (eid,))
+
+
 @router.delete("/employees/{eid}", status_code=204)
 def delete_employee(eid: str, user: dict = Depends(require_role("admin"))):
     tid = _tenant_of(user)
