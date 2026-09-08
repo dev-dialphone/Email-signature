@@ -41,7 +41,7 @@ class MockGoogleProvider(GoogleProvider):
         if not tenant:
             return []
         rows = db.q_all(
-            "SELECT email, name, title, phone, whatsapp, teams FROM employees "
+            "SELECT id, email, name, title, phone, whatsapp, teams FROM employees "
             "WHERE tenant_id=? ORDER BY name",
             (tenant["id"],))
         return rows

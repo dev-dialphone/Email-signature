@@ -423,6 +423,8 @@ async function directoryView() {
   };
 }
 window.editEmp = (id) => { editingEmp = id; directoryView(); };
+// Edit from the Apply & Status page: open the Directory tab with that row in edit mode.
+window.editMail = (id) => { editingEmp = id; state.tab = 'directory'; render(); };
 window.cancelEmp = () => { editingEmp = null; directoryView(); };
 window.saveEmp = async (id) => {
   try {
@@ -553,6 +555,7 @@ async function applyView() {
   const log = await api('/sync-log').catch(()=>[]);
   const dirRows = dir.map(u=>`<tr><td>${u.name}</td><td>${u.email}</td><td>${u.title||''}</td>
     <td style="white-space:nowrap">
+      ${u.id?`<button class="sec" onclick="editMail('${u.id}')">Edit</button>`:''}
       <button class="sec" onclick="copyMailSig('${u.email}',this)">Copy for Gmail</button>
       <button class="sec" onclick="dlMailSig('${u.email}')">HTML</button>
       <button class="sec" onclick="imgMailSig('${u.email}',this)">Image</button></td></tr>`).join('');
