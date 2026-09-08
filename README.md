@@ -19,9 +19,10 @@ on ordinary `@gmail.com` accounts.
 - [Install the Chrome extension](#install-the-chrome-extension)
 - [Using the app](#using-the-app)
 - [Roles & permissions](#roles--permissions)
-- [The 8 signature templates](#the-8-signature-templates)
+- [Signature templates](#signature-templates)
 - [API reference](#api-reference)
 - [Data model](#data-model)
+- [Testing](#testing)
 - [Configuration](#configuration)
 - [Limitations](#limitations)
 - [Optional: Google Workspace auto-push](#optional-google-workspace-auto-push)
@@ -56,22 +57,42 @@ HTML** that renders reliably in Gmail, Outlook, and Apple Mail.
 
 ## Features
 
-- **8 email-safe signature templates** (Classic, Modern, Minimal, Bold, Compact,
-  Stacked, Stacked-social-bottom, Arranged) — visual picker + live preview.
+- **19 email-safe signature templates** — a visual picker + **live preview**:
+  Classic, Modern, Minimal, Bold, Compact, Stacked, Stacked-social-bottom,
+  Arranged, Sidebar, Banner-top, Elegant, Card, Photo-circle, Banner,
+  CTA-button, QR-card, Promo-banner, Dark, and **Salamtalk** (a large-title
+  brand layout with a blue left band + outline social circles).
+- **Per-entity themes** — each company (by email domain) can get its own accent
+  colour, social-icon style and default layout, so no two companies' signatures
+  look alike (see `sig_theme.py`). Unknown domains fall back to the default look.
 - **Company fields**: name, tagline, address, website, phone, email, and 5 social
   links (Facebook, X/Twitter, YouTube, LinkedIn, Instagram — each optional).
 - **Logo**: file upload with a size control (Small 120 / Medium 180 / Large 240,
-  or a custom pixel slider 60–500). Width-only sizing so height auto-scales.
-- **Per-sender personalization**: `{{AGENT_NAME}}`, `{{AGENT_EMAIL}}`, etc. filled
-  at compose time.
+  or a custom pixel slider 60–500). Width-only sizing; the live preview resizes
+  the logo **in place** so social icons never reload or flicker.
+- **Inlined social icons** — every social glyph is a base64 data-URI, so icons
+  render reliably in the live preview **and** in every email client with no CDN
+  dependency.
+- **Employees / recipients**: add, **edit in place** (no delete + recreate), or
+  remove. Edit is available on both the **Directory** and **Apply & Status**
+  tabs as a clean labelled form; email edits are re-validated against the entity
+  domain.
+- **Per-sender personalization**: each employee's own name/email is stamped into
+  the signature at render time (never stored per person).
 - **Event / promotional banners**: upload an image, place it above or below the
   signature, one active at a time.
 - **Saved-template gallery**: save a design, re-apply or delete later.
+- **Per-agent export**: Copy-for-Gmail (rich clipboard), Download `.html`, or PNG
+  image — for any employee, ready to paste.
 - **Send test** — render the exact recipient view for the logged-in admin.
 - **Multi-company (multi-tenant)**: one backend + one extension serve every
   company; the company is resolved from the sender's email domain.
 - **Role-based access**: platform owner vs company admin, fully isolated per
   company.
+- **First-run seeding**: the platform owner is always seeded; the **Salamtalk**
+  entity is seeded with its finished signature as a worked example.
+- **Cache-busted UI**: `index.html` serves `app.js?v=<mtime>` with a `no-cache`
+  header, so new UI never hides behind a stale browser cache.
 
 ---
 
@@ -99,14 +120,20 @@ app/
     google_provider.py   # Mock/Real Google seam (directory + signature push)
     routes/api.py        # all HTTP endpoints
     lib/
-      email_signature.py # build_signature_html() — renders a signature
-      sig_layouts.py     # classic / modern / minimal / bold / compact
-      sig_layouts_extra.py     # stacked / stacked_social_bottom
-      sig_layout_arranged.py   # arranged (independent logo/social placement)
-      sync.py            # apply engine: render per employee + store + log
+      email_signature.py     # build_signature_html() — renders a signature
+      sig_icons.py           # inlined base64 social-icon data-URIs (no CDN)
+      sig_theme.py           # per-entity accent / icon-style / layout, by domain
+      sig_layouts.py         # classic / modern / minimal / bold / compact + registry
+      sig_layouts_extra.py   # stacked / stacked_social_bottom
+      sig_layout_arranged.py # arranged (independent logo/social placement)
+      sig_layouts_pro.py     # sidebar / banner_top / elegant / card / photo_circle / banner_hex
+      sig_layouts_v2.py      # cta_button / qr_card / promo_banner / dark
+      sig_layout_salamtalk.py# salamtalk_pro (blue band + outline circles)
+      sig_cta.py             # derive CTA link + QR image from website/email
+      sync.py                # apply engine: render per employee + store + log
   frontend/
-    index.html           # SPA shell + styles
-    app.js               # SPA logic (login, owner + admin views)
+    index.html           # SPA shell + styles (cache-busts app.js)
+    app.js               # SPA logic (login, owner + admin views, inline edit)
   run.sh                 # launcher (uses $PORT for the preview proxy)
   README.md              # app-specific notes
 
@@ -129,19 +156,24 @@ Requires Python 3.11+.
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install fastapi uvicorn pydantic python-multipart
+.venv/bin/pip install -r requirements.txt
+# (fastapi, uvicorn[standard], pydantic, python-multipart, psycopg[binary], pillow)
 
 cd app
 ../.venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 # open http://localhost:8000
 ```
 
-On first run **only a platform owner** is seeded (no demo companies):
+On first run the app seeds:
 
-- **Owner:** `owner@platform.com` / `owner123`
+- **Platform owner:** `owner@platform.com` / `owner123`
   (override with `OWNER_EMAIL` / `OWNER_PASSWORD` env vars)
+- **Salamtalk** entity — a worked example, with its finished signature applied.
+  Admin: `accounts@salamtalk.com` / `salamtalk123`
+  (override the password with `SALAMTALK_ADMIN_PASSWORD`). Seeding is idempotent
+  — it's skipped if the `salamtalk.com` tenant already exists.
 
-The owner creates companies; each company gets its own admin login.
+The owner creates further companies; each company gets its own admin login.
 
 ---
 
@@ -200,23 +232,37 @@ user's address).
 
 ---
 
-## The 8 signature templates
+## Signature templates
 
 All are `<table>`-based inline-CSS HTML (no flexbox/grid, no external styles).
+Every user value is HTML-escaped; logo URLs are made absolute; social icons are
+**inlined base64** (no CDN). Registered in `sig_layouts.py`'s `LAYOUTS`; the
+admin's picked layout always wins over the entity theme default.
 
-1. **Classic** — two columns: name/title/contact left, logo + socials right.
+**Core** (`sig_layouts.py`, `sig_layouts_extra.py`, `sig_layout_arranged.py`)
+1. **Classic** — name/title/contact left, logo + socials right.
 2. **Modern** — logo beside name, accent bar, contact on one dotted line.
 3. **Minimal** — name · title side by side, one contact line, logo far right.
 4. **Bold** — thick accent left border, large name, logo down the right.
-5. **Compact** — two lines only (name·title / phone·email·web), socials + logo.
-6. **Stacked** — single column, socials by name, logo inline at bottom.
-7. **Stacked (social bottom)** — same, socials under the logo.
-8. **Arranged** — pick logo position (right/below) and social position
-   (next-to-name / below-logo / bottom) independently.
+5. **Compact** — two lines only, socials + logo.
+6. **Stacked** / 7. **Stacked (social bottom)** — single column variants.
+8. **Arranged** — logo position (right/below) + social position independent.
 
-Shared styling: accent `#1a73e8`, text `#333`, muted `#888`; social icons are
-white glyphs on brand-colored circles; all user values are HTML-escaped; logo
-URLs are made absolute so they render in remote clients.
+**Pro** (`sig_layouts_pro.py`)
+9. **Sidebar** · 10. **Banner-top** · 11. **Elegant** · 12. **Card** ·
+13. **Photo-circle** · 14. **Banner**.
+
+**Distinct / 2026 trends** (`sig_layouts_v2.py`)
+15. **CTA-button** (pill CTA) · 16. **QR-card** (scan-to-connect) ·
+17. **Promo-banner** (full-width strip) · 18. **Dark** (inverted).
+
+**Brand** (`sig_layout_salamtalk.py`)
+19. **Salamtalk** — 6px blue left band, large title, big logo, outline social
+   circles; driven by entity values so any company can use it.
+
+Adding a layout: write a function taking `SigVals`, register it in a
+`*_LAYOUTS` dict, and (for a new module) add one import + spread in
+`_register_extra()`. Add a Design-picker tile in `app.js`'s `LAYOUTS` array.
 
 ---
 
@@ -233,7 +279,8 @@ Base path: `/api`. All admin routes require a Bearer session token.
 
 **Signature (admin)**
 - `GET /signature` · `PATCH /signature`
-- `GET /signature/preview` · `POST /signature/test`
+- `GET /signature/preview` (saved) · `POST /signature/preview` (unsaved draft)
+- `POST /signature/test` · `GET /signature/export` (by `employee_id` or `email`)
 - `POST /signature/logo` (multipart image upload)
 
 **Saved templates (admin)**
@@ -241,7 +288,8 @@ Base path: `/api`. All admin routes require a Bearer session token.
 - `POST /sig-templates/{id}/apply` · `DELETE /sig-templates/{id}`
 
 **Team / directory (admin)**
-- `GET /employees` · `POST /employees` · `DELETE /employees/{id}`
+- `GET /employees` · `POST /employees` · `PATCH /employees/{id}` (edit in place)
+  · `DELETE /employees/{id}`
 
 **Promotions (admin)**
 - `GET /promos` · `POST /promos` · `POST /promos/upload`
@@ -269,12 +317,28 @@ Tables (identical on SQLite & Postgres; all company data cascades on entity dele
 
 ---
 
+## Testing
+
+No external test framework — `tests/api_test.py` spins the app in-process with
+FastAPI's `TestClient` and exercises every endpoint, RBAC, multi-tenant
+isolation, per-entity themes, employee edit, logo sizing and signature rendering
+with plain asserts.
+
+```sh
+.venv/bin/python tests/api_test.py      # prints PASS/FAIL per check + a summary
+```
+
+Runs against SQLite by default; set `DATABASE_URL` to also cover Postgres.
+
+---
+
 ## Configuration
 
 | Env var | Default | Purpose |
 |--------|---------|---------|
 | `OWNER_EMAIL` | `owner@platform.com` | seeded owner login |
 | `OWNER_PASSWORD` | `owner123` | seeded owner password |
+| `SALAMTALK_ADMIN_PASSWORD` | `salamtalk123` | seeded Salamtalk admin password |
 | `APP_SECRET` | `dev-insecure-change-me` | HMAC key for session tokens (**set in prod**) |
 | `DATABASE_URL` | *(unset → SQLite)* | `postgresql://user:pass@host:5432/db` to use Postgres |
 | `DATA_DIR` | source dir | SQLite mode: persistent path for `data.db`; also holds uploads in both modes |
