@@ -75,7 +75,16 @@ def _startup():
 
 @app.get("/")
 def index():
-    return FileResponse(FRONTEND / "index.html")
+    # Cache-bust app.js by its mtime so browsers always load the latest UI
+    # (the app is a single unversioned file; stale caches hid new features).
+    html = (FRONTEND / "index.html").read_text()
+    try:
+        ver = str(int((FRONTEND / "app.js").stat().st_mtime))
+    except OSError:
+        ver = "1"
+    html = html.replace("__ASSET_VER__", ver)
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
 # serve any other static asset (single-file app, but keep it flexible)
