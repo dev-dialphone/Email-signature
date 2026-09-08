@@ -376,17 +376,25 @@ async function directoryView() {
   const val = (s)=>String(s==null?'':s).replace(/"/g,'&quot;');
   const rows = emps.map(e=>{
     if (editingEmp === e.id) {
-      return `<tr>
-        <td><input id="ed-name-${e.id}" value="${val(e.name)}"/></td>
-        <td><input id="ed-email-${e.id}" value="${val(e.email)}"/></td>
-        <td><input id="ed-title-${e.id}" value="${val(e.title)}"/></td>
-        <td><input id="ed-phone-${e.id}" value="${val(e.phone)}"/></td>
-        <td><input id="ed-wa-${e.id}" value="${val(e.whatsapp)}"/></td>
-        <td><input id="ed-teams-${e.id}" value="${val(e.teams)}"/></td>
-        <td style="white-space:nowrap">
+      // Cramming 6 inputs into narrow columns is unusable — expand into a clean
+      // full-width labelled form spanning all columns instead.
+      return `<tr><td colspan="7" style="background:#f7f9fc;padding:14px 12px;">
+        <div style="font-weight:bold;margin-bottom:10px">Edit ${e.name||'employee'}</div>
+        <div class="row">
+          <div><label>Name</label><input id="ed-name-${e.id}" value="${val(e.name)}"/></div>
+          <div><label>Email</label><input id="ed-email-${e.id}" value="${val(e.email)}"/></div>
+          <div><label>Title</label><input id="ed-title-${e.id}" value="${val(e.title)}"/></div>
+        </div>
+        <div class="row">
+          <div><label>Phone</label><input id="ed-phone-${e.id}" value="${val(e.phone)}"/></div>
+          <div><label>WhatsApp</label><input id="ed-wa-${e.id}" value="${val(e.whatsapp)}"/></div>
+          <div><label>Teams</label><input id="ed-teams-${e.id}" value="${val(e.teams)}"/></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
           <button onclick="saveEmp('${e.id}')">Save</button>
           <button class="sec" onclick="cancelEmp()">Cancel</button>
-          <span id="ed-msg-${e.id}" class="muted"></span></td></tr>`;
+          <span id="ed-msg-${e.id}" style="color:#dc2626;font-size:13px"></span>
+        </div></td></tr>`;
     }
     return `<tr><td>${e.name}</td><td>${e.email}</td><td>${e.title||''}</td>
     <td>${e.phone||''}</td><td>${e.whatsapp||''}</td><td>${e.teams||''}</td>
@@ -423,8 +431,18 @@ async function directoryView() {
   };
 }
 window.editEmp = (id) => { editingEmp = id; directoryView(); };
-// Edit from the Apply & Status page: open the Directory tab with that row in edit mode.
-window.editMail = (id) => { editingEmp = id; state.tab = 'directory'; render(); };
+// Inline edit on the Apply & Status page (same PATCH endpoint, same form).
+window.editMail = (id) => { editingMail = id; applyView(); };
+window.cancelMail = () => { editingMail = null; applyView(); };
+window.saveMail = async (id) => {
+  try {
+    await api(`/employees/${id}`,{method:'PATCH',body:{
+      name:$('#em-name-'+id).value, email:$('#em-email-'+id).value,
+      title:$('#em-title-'+id).value, phone:$('#em-phone-'+id).value,
+      whatsapp:$('#em-wa-'+id).value, teams:$('#em-teams-'+id).value}});
+    editingMail = null; applyView();
+  } catch(e){ const m=$('#em-msg-'+id); if(m) m.textContent = e.message; }
+};
 window.cancelEmp = () => { editingEmp = null; directoryView(); };
 window.saveEmp = async (id) => {
   try {
@@ -550,15 +568,39 @@ window.promo = async (id,act) => { await api(`/promos/${id}/${act}`,{method:'POS
 window.delPromo = async (id) => { await api(`/promos/${id}`,{method:'DELETE'}); promosView(); };
 
 // ---------- Admin: apply & status ----------
+let editingMail = null;   // id of the recipient row currently in inline edit
 async function applyView() {
   const dir = await api('/directory').catch(()=>[]);
   const log = await api('/sync-log').catch(()=>[]);
-  const dirRows = dir.map(u=>`<tr><td>${u.name}</td><td>${u.email}</td><td>${u.title||''}</td>
+  const val = (s)=>String(s==null?'':s).replace(/"/g,'&quot;');
+  const dirRows = dir.map(u=>{
+    if (u.id && editingMail === u.id) {
+      // Inline edit, same clean labelled form as the Directory tab.
+      return `<tr><td colspan="4" style="background:#f7f9fc;padding:14px 12px;">
+        <div style="font-weight:bold;margin-bottom:10px">Edit ${u.name||'recipient'}</div>
+        <div class="row">
+          <div><label>Name</label><input id="em-name-${u.id}" value="${val(u.name)}"/></div>
+          <div><label>Email</label><input id="em-email-${u.id}" value="${val(u.email)}"/></div>
+          <div><label>Title</label><input id="em-title-${u.id}" value="${val(u.title)}"/></div>
+        </div>
+        <div class="row">
+          <div><label>Phone</label><input id="em-phone-${u.id}" value="${val(u.phone)}"/></div>
+          <div><label>WhatsApp</label><input id="em-wa-${u.id}" value="${val(u.whatsapp)}"/></div>
+          <div><label>Teams</label><input id="em-teams-${u.id}" value="${val(u.teams)}"/></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <button onclick="saveMail('${u.id}')">Save</button>
+          <button class="sec" onclick="cancelMail()">Cancel</button>
+          <span id="em-msg-${u.id}" style="color:#dc2626;font-size:13px"></span>
+        </div></td></tr>`;
+    }
+    return `<tr><td>${u.name}</td><td>${u.email}</td><td>${u.title||''}</td>
     <td style="white-space:nowrap">
       ${u.id?`<button class="sec" onclick="editMail('${u.id}')">Edit</button>`:''}
       <button class="sec" onclick="copyMailSig('${u.email}',this)">Copy for Gmail</button>
       <button class="sec" onclick="dlMailSig('${u.email}')">HTML</button>
-      <button class="sec" onclick="imgMailSig('${u.email}',this)">Image</button></td></tr>`).join('');
+      <button class="sec" onclick="imgMailSig('${u.email}',this)">Image</button></td></tr>`;
+  }).join('');
   const logRows = log.map(l=>`<tr><td>${l.user_email}</td>
     <td><span class="badge ${l.status==='ok'?'ok':'err'}">${l.status}</span></td>
     <td class="muted">${l.detail||''}</td>
